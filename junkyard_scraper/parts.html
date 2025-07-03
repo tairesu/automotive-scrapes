@@ -1,0 +1,22 @@
+<html><head></head><body>
+    <select id="year"></select>
+<select id="make"></select>
+<select id="model"></select>
+<select id="trim"></select>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script src="https://www.carqueryapi.com/js/carquery.0.3.4.js"></script>
+<script>
+    var carquery = new CarQuery();
+  
+    window.onload = function () {
+      carquery.init();
+  
+      carquery.setFilters({
+        sold_in_us: true
+      });
+  
+      carquery.initYearMakeModelTrim("year", "make", "model", "trim", "");
+    };
+  </script>
+</body></html>
