@@ -14,21 +14,30 @@ categories  = []
 def handle_url(make, year, model=None, trim=None, category=None, part=None):
     if not model:
         url = f'https://www.rockauto.com/en/catalog/{make},{year}'
-    elif model and not trim:
+    elif not trim:
         url = f'https://www.rockauto.com{model["slug"]}'
-    elif trim and not category:
+    elif not category:
         url = f'https://www.rockauto.com{trim["slug"]}'
     elif category:
         url = f'https://www.rockauto.com{category["slug"]}'
     elif part:
         url = f'https://www.rockauto.com{part["slug"]}'
-    return url 
+    return url
 
+
+def selection(openLinksList) :
+    
+    for (i,anchor) in enumerate(openLinksList):
+        print(i,anchor['name'])
+    selection = int(input("Make a selection"))    
+    return openLinksList[selection]
+
+# Call next recursive case based on parameters
 def handle_next_recursion(openLinksList, make, year, model=None, trim=None, category=None, part=None):
     if not model:
         # Go deeper with model
-        print(f'\n\nall models: \n {openLinksList} \n')
-        return get_rockauto_data(make, year, model=openLinksList[0])
+        
+        return get_rockauto_data(make, year, model=selection(openLinksList))
     elif not trim:
         print(f'\n\nall trims: \n {openLinksList} \n')
         # Go deeper with trim
@@ -69,4 +78,4 @@ def get_rockauto_data(make, year, model=None, trim=None, category=None, part=Non
     handle_next_recursion(openLinksList, make, year, model=None, trim=None, category=None, part=None)
     
     
-print(get_rockauto_data('honda','2002'))
+print(get_rockauto_data('honda','2004'))
