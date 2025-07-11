@@ -4,8 +4,6 @@ import io
 import pandas as pd
 
 class JunkyardScraper:
-    
-
     def __init__(self):
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -14,6 +12,7 @@ class JunkyardScraper:
         self.cached_results = []
         self.row_headers = []
     
+
     def valid_query(self, query):
         car_queries = query.strip().split(',')
         for request in car_queries:
@@ -21,10 +20,14 @@ class JunkyardScraper:
                 return False
         return True
 
+
     def set_results(self, results):
-        self.cached_results.append(self.results)
         self.results = results
-        print(self.results)
+        print(f'\n\n \t{self.results} \n\n')
+
+
+    def cache_result(self, result):
+        self.cached_results.append(result)
 
 
     def parse_queries(self, query):
@@ -81,22 +84,22 @@ class JunkyardScraper:
             print("[!] Invalid query format.")
             return ''
 
-        print(f"[fetch_results] Parsed: {parsed}")
         for i, car in enumerate(parsed):
             self.results += self.fetch_junkyard_data(
                 car['make'], car['model'], ignore_headers=(i > 0)
             )
         self.set_results(self.results)
+        self.cache_result(self.results)
         return self.results
 
     
     def display_options(self, options, numbers_on=True):
         for i, opt in enumerate(options):
-            print(f"{i}: {opt}" if numbers_on else f"{opt}")
+            print(f"{i}: {opt}" if numbers_on else f"{opt}\n\n")
 
     
     def car_selection(self):
-        print("Searching Joliet U-Pull-It...")
+        print("\nSearching Joliet U-Pull-It...\n")
         car = input("Enter make and model: ")
         if car.lower() == 'exit':
             print("Goodbye")
@@ -112,7 +115,10 @@ class JunkyardScraper:
             'Filter Cars': self.handle_filter,
             'Search Again': self.handle_search,
         }
-        
+        print(f'[opt_selection] len cacched_results: {len(self.cached_results)}')
+        if len(self.cached_results) > 1:
+            callbacks['Go Back'] = self.handle_go_back
+
         opts = list(callbacks.keys())
         self.display_options(opts, numbers_on=True)
         choice = input(f"What next? (0-{len(opts)-1}): ")
@@ -120,6 +126,7 @@ class JunkyardScraper:
             callbacks[opts[int(choice)]]()
             return True
         return False
+
 
     def filter_selection(self):
         opts = self.row_headers
@@ -131,6 +138,7 @@ class JunkyardScraper:
         df = self.parse_df()
         filtered_df = self.handle_df(df,filter_query=choice, mode='filter')
         self.set_results(filtered_df)
+        self.cache_result(filtered_df)
         return True
 
 
@@ -142,9 +150,19 @@ class JunkyardScraper:
         else:
             print("Goodbye")
 
+    #Returns results string to previous version
+    def handle_go_back(self):
+        #Remove last known results data
+        self.cached_results.pop()
+        #Sets results = previous cached results
+        self.set_results(self.cached_results[-1])
+        #Prompt for next steps
+        self.ask_input(self.opt_selection)
+
 
     def handle_opts(self):
         self.ask_input(self.opt_selection)
+
 
     def parse_df(self):
         if (self.results):
@@ -175,6 +193,7 @@ class JunkyardScraper:
             df = self.parse_df()
             sorted_df = self.handle_df(df,header_name=opt,mode='sort')
             self.set_results(sorted_df)
+            self.cache_result(sorted_df)
             return True
 
 
@@ -193,8 +212,7 @@ class JunkyardScraper:
                     self.ask_input(self.opt_selection)
             except Exception as e:
                 print('Try Again\n')
-                self.handle_filter(retries=retries-1)
-                
+                self.handle_filter(retries=retries-1)         
 
     
     def ask_input(self, func):
