@@ -93,10 +93,11 @@ class JunkyardScraper:
         print("Searching Joliet U-Pull-It...")
         car = input("Enter make and model: ")
         if car.lower() == 'exit':
+            print("Goodbye")
             return False
         print(f"[car_selection] Valid query: {self.valid_query(car)}")
-        self.fetch_results(car)
-        return True
+        
+        return True if self.fetch_results(car) else False
 
     
     def opt_selection(self):
@@ -108,8 +109,6 @@ class JunkyardScraper:
         opts = list(callbacks.keys())
         self.display_options(opts)
         choice = input(f"What next? [0-{len(opts)-1}]: ")
-        if choice.lower() == 'exit':
-            return False
         if choice.isdigit() and int(choice) in range(len(opts)):
             callbacks[opts[int(choice)]]()
             return True
@@ -117,7 +116,11 @@ class JunkyardScraper:
 
     
     def handle_search(self):
-        self.ask_input(self.car_selection)
+        self.results = ''
+        if(self.ask_input(self.car_selection)):
+            self.handle_opts()
+        else:
+            print("Goodbye")
 
 
     def handle_opts(self):
@@ -137,16 +140,18 @@ class JunkyardScraper:
         self.display_options(opts)
         choice = input(f"Sort By What? [0-{len(opts)-1}]: ")
         if choice.lower() == 'exit':
-            return False
+            return True
         if choice.isdigit() and int(choice) in range(len(opts)):
             opt = opts[int(choice)]
             df = self.parse_df(opt)
             print(df)
-            return False
+            return True
+
 
     def handle_sort_by(self):
         if(self.results):
-            self.ask_input(self.sort_selection)
+            if(self.ask_input(self.sort_selection)):
+                self.ask_input(self.opt_selection)
         else:
             print("[!] There aren't any results to sort. \n")
 
@@ -156,12 +161,14 @@ class JunkyardScraper:
 
     
     def ask_input(self, func):
-        while not func():
+        stop = func()
+        #print(f'[ask_input] func:{func} , stop is :{stop}')
+        while not stop:
             pass
+
         return True
 
 # Run it
 if __name__ == "__main__":
     scraper = JunkyardScraper()
     scraper.handle_search()
-    scraper.handle_opts()
