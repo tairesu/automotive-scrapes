@@ -11,6 +11,7 @@ class JunkyardScraper:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         }
         self.results = ""
+        self.cached_results = []
         self.row_headers = []
     
     def valid_query(self, query):
@@ -20,7 +21,12 @@ class JunkyardScraper:
                 return False
         return True
 
-   
+    def set_results(self, results):
+        self.cached_results.append(self.results)
+        self.results = results
+        print(self.results)
+
+
     def parse_queries(self, query):
         if not self.valid_query(query):
             return False
@@ -80,13 +86,13 @@ class JunkyardScraper:
             self.results += self.fetch_junkyard_data(
                 car['make'], car['model'], ignore_headers=(i > 0)
             )
-        print(self.results)
+        self.set_results(self.results)
         return self.results
 
     
-    def display_options(self, options):
+    def display_options(self, options, numbers_on=True):
         for i, opt in enumerate(options):
-            print(f"{i}: {opt}")
+            print(f"{i}: {opt}" if numbers_on else f"{opt}")
 
     
     def car_selection(self):
@@ -104,17 +110,31 @@ class JunkyardScraper:
         callbacks = {
             'Sort Cars': self.handle_sort_by,
             'Filter Cars': self.handle_filter,
-            'Search Again': self.handle_search
+            'Search Again': self.handle_search,
         }
+        
         opts = list(callbacks.keys())
-        self.display_options(opts)
-        choice = input(f"What next? [0-{len(opts)-1}]: ")
+        self.display_options(opts, numbers_on=True)
+        choice = input(f"What next? (0-{len(opts)-1}): ")
         if choice.isdigit() and int(choice) in range(len(opts)):
             callbacks[opts[int(choice)]]()
             return True
         return False
 
-    
+    def filter_selection(self):
+        opts = self.row_headers
+        self.display_options(opts,numbers_on=False)
+        choice = input(f"Filter By What (Write Query)?: ")
+        if choice.lower() == 'exit':
+            return False
+        
+        df = self.parse_df()
+        filtered_df = self.handle_df(df,filter_query=choice, mode='filter')
+        self.set_results(filtered_df)
+        return True
+
+
+
     def handle_search(self):
         self.results = ''
         if(self.ask_input(self.car_selection)):
@@ -126,25 +146,35 @@ class JunkyardScraper:
     def handle_opts(self):
         self.ask_input(self.opt_selection)
 
-    def parse_df(self,header_name):
+    def parse_df(self):
         if (self.results):
             data_io = io.StringIO(self.results)
             df = pd.read_csv(data_io)
-            df = df.sort_values(header_name)
-            df = df.to_csv(index=False)
             return df
-            
+
+
+    def handle_df(self,dataframe,header_name=None,filter_query='',mode='sort'):
+        if mode == 'filter':
+            df = dataframe.query(filter_query)
+        elif mode == 'sort':
+            df = dataframe.sort_values(header_name)
+        else:
+            pass
+        df = df.to_csv(index=False)
+        return df
+
 
     def sort_selection(self):
         opts = self.row_headers
-        self.display_options(opts)
+        self.display_options(opts,numbers_on=True)
         choice = input(f"Sort By What? [0-{len(opts)-1}]: ")
         if choice.lower() == 'exit':
             return True
         if choice.isdigit() and int(choice) in range(len(opts)):
             opt = opts[int(choice)]
-            df = self.parse_df(opt)
-            print(df)
+            df = self.parse_df()
+            sorted_df = self.handle_df(df,header_name=opt,mode='sort')
+            self.set_results(sorted_df)
             return True
 
 
@@ -156,8 +186,15 @@ class JunkyardScraper:
             print("[!] There aren't any results to sort. \n")
 
     
-    def handle_filter(self):
-        print("[Filter] Feature not implemented yet.")
+    def handle_filter(self, retries=3):
+        if(self.results):
+            try:
+                if(self.ask_input(self.filter_selection)):
+                    self.ask_input(self.opt_selection)
+            except Exception as e:
+                print('Try Again\n')
+                self.handle_filter(retries=retries-1)
+                
 
     
     def ask_input(self, func):
