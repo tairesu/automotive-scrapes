@@ -23,12 +23,11 @@ class JunkyardScraper:
 
     def set_results(self, results):
         self.results = results
-        print(f'\n\n \t{self.results} \n\n')
+        print(f'\n\n{self.results} \n\n')
 
 
     def cache_result(self, result):
         self.cached_results.append(result)
-
 
     def parse_queries(self, query):
         if not self.valid_query(query):
@@ -55,6 +54,7 @@ class JunkyardScraper:
         
         rows = table.find_all('tr')
         if ignore_headers:
+            #Skip the header row
             rows = rows[1:]
         
         return self.parse_table(rows)
@@ -68,8 +68,6 @@ class JunkyardScraper:
         for i, row in enumerate(rows):
             cells = row.find_all(['th', 'td'])
             cols = [cell.get_text(strip=True) for cell in cells]
-            
-
             if i == 0 and row.find('th'):
                 self.row_headers = cols
                 data = ','.join(cols) + '\n'
@@ -95,7 +93,9 @@ class JunkyardScraper:
     
     def display_options(self, options, numbers_on=True):
         for i, opt in enumerate(options):
-            print(f"{i}: {opt}" if numbers_on else f"{opt}\n\n")
+            print(f"  [{i}] {opt}" if numbers_on else f"  -`{opt}`")
+
+        print('\n')
 
     
     def car_selection(self):
@@ -104,7 +104,7 @@ class JunkyardScraper:
         if car.lower() == 'exit':
             print("Goodbye")
             return False
-        print(f"[car_selection] Valid query: {self.valid_query(car)}")
+        #print(f"[car_selection] Valid query: {self.valid_query(car)}")
         
         return True if self.fetch_results(car) else False
 
@@ -115,7 +115,8 @@ class JunkyardScraper:
             'Filter Cars': self.handle_filter,
             'Search Again': self.handle_search,
         }
-        print(f'[opt_selection] len cacched_results: {len(self.cached_results)}')
+        #print(f'[opt_selection] len cacched_results: {len(self.cached_results)}')
+        print("Actions:")
         if len(self.cached_results) > 1:
             callbacks['Go Back'] = self.handle_go_back
 
@@ -129,7 +130,9 @@ class JunkyardScraper:
 
 
     def filter_selection(self):
+        print("\nFilter using headers:")
         opts = self.row_headers
+
         self.display_options(opts,numbers_on=False)
         choice = input(f"Filter By What (Write Query)?: ")
         if choice.lower() == 'exit':
@@ -142,6 +145,21 @@ class JunkyardScraper:
         return True
 
 
+    def sort_selection(self):
+        print("\nSorting through inventory")
+        opts = self.row_headers
+        self.display_options(opts,numbers_on=True)
+        choice = input(f"Sort By What? [0-{len(opts)-1}]: ")
+        if choice.lower() == 'exit':
+            return True
+        if choice.isdigit() and int(choice) in range(len(opts)):
+            opt = opts[int(choice)]
+            df = self.parse_df()
+            sorted_df = self.handle_df(df,header_name=opt,mode='sort')
+            self.set_results(sorted_df)
+            self.cache_result(sorted_df)
+            return True
+
 
     def handle_search(self):
         self.results = ''
@@ -152,6 +170,7 @@ class JunkyardScraper:
 
     #Returns results string to previous version
     def handle_go_back(self):
+        print("\n Undoing last operation")
         #Remove last known results data
         self.cached_results.pop()
         #Sets results = previous cached results
@@ -180,21 +199,6 @@ class JunkyardScraper:
             pass
         df = df.to_csv(index=False)
         return df
-
-
-    def sort_selection(self):
-        opts = self.row_headers
-        self.display_options(opts,numbers_on=True)
-        choice = input(f"Sort By What? [0-{len(opts)-1}]: ")
-        if choice.lower() == 'exit':
-            return True
-        if choice.isdigit() and int(choice) in range(len(opts)):
-            opt = opts[int(choice)]
-            df = self.parse_df()
-            sorted_df = self.handle_df(df,header_name=opt,mode='sort')
-            self.set_results(sorted_df)
-            self.cache_result(sorted_df)
-            return True
 
 
     def handle_sort_by(self):
