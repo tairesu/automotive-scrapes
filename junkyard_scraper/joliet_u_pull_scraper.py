@@ -2,6 +2,17 @@ from bs4 import BeautifulSoup
 import requests
 import io
 import pandas as pd
+import re
+
+def is_year_present(pattern):
+    # print('(is_year_present) patterm:', pattern)
+    return True if re.findall(r"^\d{2}\s|^\d{4}\s", pattern) else False
+
+def get_car_year(pattern):
+    desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", pattern)[0].strip()
+    # print(f'get_car_year({pattern}) desired_car_year:', len(desired_car_year))
+    desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
+    return desired_car_year
 
 class JunkyardScraper:
     def __init__(self):
@@ -16,10 +27,11 @@ class JunkyardScraper:
     def valid_query(self, query):
         car_queries = query.strip().split(',')
         for request in car_queries:
-            if len(request.strip().split(' ')) > 2:
+            if len(request.strip().split(' ')) > 3:
                 return False
         return True
 
+# Chevrolet Tahoe, GMC Yukon, Cadillac Escalade, Chevrolet Silverado, GMC Sierra, Chevrolet Avalanche, Chevrolet Suburban, GMC Yukon XL, Chevrolet TrailBlazer, GMC Envoy, Buick Rainier, Saab 9-7X, Isuzu Ascender, Hummer H3, Chevrolet Colorado, GMC Canyon
 
     def set_results(self, results):
         self.results = results
@@ -29,20 +41,42 @@ class JunkyardScraper:
     def cache_result(self, result):
         self.cached_results.append(result)
 
+
+    # maps input string to dictionary of cars            
     def parse_queries(self, query):
         if not self.valid_query(query):
             return False
         
         queries = []
         for car in query.strip().split(','):
-            parts = car.strip().split(' ')
-            make = parts[0].upper()
-            model = parts[1].upper() if len(parts) == 2 else ''
-            queries.append({'make': make, 'model': model})
+            car_search = car.strip().split(' ')
+            year = ''
+            if is_year_present(car):
+                year = get_car_year(car)
+                make = car_search[1].upper()
+                car_search.pop(0)
+            else:
+                make = car_search[0].upper()
+
+            if len(car_search) == 1:
+                model = ''
+
+            elif len(car_search) == 2:
+                model = car_search[1].upper()
+
+            elif len(car_search) == 3:
+                model_first_value = car_search[1].upper()
+                model_second_value = car_search[2].upper()
+                model = model_first_value + '+' + model_second_value
+            else:
+                return False
+
+            queries.append({'make': make, 'model': model, 'year': year})
+        # print(f'parse_queries({query}): {queries}')
         return queries
 
    
-    def fetch_junkyard_data(self, make='', model='', ignore_headers=False):
+    def fetch_junkyard_data(self, make='', model='',year='', ignore_headers=False):
         url = f'https://www.jolietupullit.com/inventory/?make={make}&model={model}'
         response = requests.get(url, headers=self.headers)
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -57,10 +91,10 @@ class JunkyardScraper:
             #Skip the header row
             rows = rows[1:]
         
-        return self.parse_table(rows)
+        return self.parse_table(rows,year)
 
     
-    def parse_table(self, rows, mode='csv'):
+    def parse_table(self, rows, year='', mode='csv'):
         if mode != 'csv':
             raise ValueError("Only CSV mode is currently supported.")
         
@@ -72,7 +106,8 @@ class JunkyardScraper:
                 self.row_headers = cols
                 data = ','.join(cols) + '\n'
             elif len(cols) >= 6:
-                data += ','.join(cols[:6]) + '\n'
+                if (year and cols[0] == year) or not year:
+                    data += ','.join(cols[:6]) + '\n'
         return data
 
     
@@ -84,7 +119,7 @@ class JunkyardScraper:
 
         for i, car in enumerate(parsed):
             self.results += self.fetch_junkyard_data(
-                car['make'], car['model'], ignore_headers=(i > 0)
+                car['make'], car['model'], car['year'], ignore_headers=(i > 0)
             )
         self.set_results(self.results)
         self.cache_result(self.results)
