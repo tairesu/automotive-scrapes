@@ -25,9 +25,11 @@ class JunkyardScraper:
     
 
     def valid_query(self, query):
+        
         car_queries = query.strip().split(',')
         for request in car_queries:
-            if len(request.strip().split(' ')) > 3:
+            print(f'\nvalidating:{request.strip()}\nrequest components:{request.strip().split(' ')}\n')
+            if len(request.strip().split(' ')) > 4:
                 return False
         return True
 
@@ -49,10 +51,11 @@ class JunkyardScraper:
         
         queries = []
         for car in query.strip().split(','):
+            print(f'parsing {car}, is_year_present:{is_year_present(car.strip())}')
             car_search = car.strip().split(' ')
             year = ''
-            if is_year_present(car):
-                year = get_car_year(car)
+            if is_year_present(car.strip()):
+                year = get_car_year(car.strip())
                 make = car_search[1].upper()
                 car_search.pop(0)
             else:
@@ -70,9 +73,9 @@ class JunkyardScraper:
                 model = model_first_value + '+' + model_second_value
             else:
                 return False
-
+  
             queries.append({'make': make, 'model': model, 'year': year})
-        # print(f'parse_queries({query}): {queries}')
+        #print(f'parse_queries({query}): {queries}')
         return queries
 
    
