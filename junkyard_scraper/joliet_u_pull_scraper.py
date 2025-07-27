@@ -8,9 +8,9 @@ def is_year_present(pattern):
     # print('(is_year_present) patterm:', pattern)
     return True if re.findall(r"^\d{2}\s|^\d{4}\s", pattern) else False
 
-def get_car_year(pattern):
+def parse_car_year(pattern):
     desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", pattern)[0].strip()
-    # print(f'get_car_year({pattern}) desired_car_year:', len(desired_car_year))
+    # print(f'parse_car_year({pattern}) desired_car_year:', len(desired_car_year))
     desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
     return desired_car_year
 
@@ -28,7 +28,6 @@ class JunkyardScraper:
         
         car_queries = query.strip().split(',')
         for request in car_queries:
-            print(f'\nvalidating:{request.strip()}\nrequest components:{request.strip().split(' ')}\n')
             if len(request.strip().split(' ')) > 4:
                 return False
         return True
@@ -44,41 +43,100 @@ class JunkyardScraper:
         self.cached_results.append(result)
 
 
-    # maps input string to dictionary of cars            
+    # maps given string to dictionary of cars            
     def parse_queries(self, query):
         if not self.valid_query(query):
             return False
         
         queries = []
-        for car in query.strip().split(','):
-            print(f'parsing {car}, is_year_present:{is_year_present(car.strip())}')
-            car_search = car.strip().split(' ')
-            year = ''
-            if is_year_present(car.strip()):
-                year = get_car_year(car.strip())
-                make = car_search[1].upper()
-                car_search.pop(0)
-            else:
-                make = car_search[0].upper()
-
-            if len(car_search) == 1:
-                model = ''
-
-            elif len(car_search) == 2:
-                model = car_search[1].upper()
-
-            elif len(car_search) == 3:
-                model_first_value = car_search[1].upper()
-                model_second_value = car_search[2].upper()
-                model = model_first_value + '+' + model_second_value
-            else:
-                return False
-  
-            queries.append({'make': make, 'model': model, 'year': year})
-        #print(f'parse_queries({query}): {queries}')
+        #Loop through each section of starting query
+        for car_search in query.strip().split(','):   
+            car_search_dict = self.format_car_search(car_search)         
+            #Append dictionary containing make, model, year
+            queries.append(car_search_dict)
         return queries
 
-   
+
+    def fetch_results(self, query):
+        parsed = self.parse_queries(query)
+        if not parsed:
+            print("[!] Invalid query format.")
+            return ''
+
+        for i, car in enumerate(parsed):
+            self.results += self.fetch_junkyard_data(
+                car['make'], car['model'], car['year'], ignore_headers=(i > 0)
+            )
+        self.set_results(self.results)
+        self.cache_result(self.results)
+        return self.results
+
+
+    #Gets car model from list of search components 
+    def get_car_model(self, car_search_components):
+        #If the search contains no dividing spaces 
+        if len(car_search_components) == 1:
+            #Set model to empty
+            model = ''
+        #If the search contains 1 dividing space 
+        elif len(car_search_components) == 2:
+            #Set model to second item in search components
+            model = car_search_components[1].upper()
+        #If the search contains 2 diving spaces
+        elif len(car_search_components) == 3:
+            #Set model to the first and second items in search components
+            model = car_search_components[1].upper() + '+' + car_search_components[2].upper()
+
+        return model
+
+
+    #Format raw car search into dictionary: (e.g "2004 Honda Civic" => {year:"2004", make:"Honda"...})
+    def format_car_search(self, car_search):
+        year = ''
+        search = car_search.strip()
+        #Break starting query string into list of components
+        search_components = search.split(' ') 
+        #If a year string is found...
+        if is_year_present(search):
+            #Set the year 
+            year = parse_car_year(search)
+            #Set the make to second item in search components
+            make = search_components[1].upper()
+            #Remove the year from components  
+            search_components.pop(0)
+        else:
+            #Set the make to first item in search components
+            make = search_components[0].upper()
+        #Gets the model based on search componentslength 
+        model = self.get_car_model(search_components)
+        return {'make': make, 'model': model, 'year': year}
+
+
+    #cleans vehicle data from given HTML table rows 
+    def parse_site_table(self, table_rows, year='', mode='csv'):
+        if mode != 'csv':
+            raise ValueError("Only CSV mode is currently supported.")
+        
+        cleaned_data = ''
+        for i, table_row in enumerate(table_rows):
+            #Grab all th and td elements from a table row 
+            cells = table_row.find_all(['th', 'td'])
+            #Creates a list of inner text from the table row elements)
+            cols = [cell.get_text(strip=True) for cell in cells]
+            #If first time looping, and a table header element exists 
+            if i == 0 and row.find('th'):
+                #set row headers to the table header text list 
+                self.row_headers = cols
+                #format table header text list to CSV 
+                cleaned_data = ','.join(cols) + '\n'
+            elif len(cols) >= 6:
+                #if year is found within the first column  Or year is not passed 
+                if (year and cols[0] == year) or not year:
+                    #Format table header text list as csv 
+                    cleaned_data += ','.join(cols[:6]) + '\n'
+        return cleaned_data
+
+    
     def fetch_junkyard_data(self, make='', model='',year='', ignore_headers=False):
         url = f'https://www.jolietupullit.com/inventory/?make={make}&model={model}'
         response = requests.get(url, headers=self.headers)
@@ -94,39 +152,7 @@ class JunkyardScraper:
             #Skip the header row
             rows = rows[1:]
         
-        return self.parse_table(rows,year)
-
-    
-    def parse_table(self, rows, year='', mode='csv'):
-        if mode != 'csv':
-            raise ValueError("Only CSV mode is currently supported.")
-        
-        data = ''
-        for i, row in enumerate(rows):
-            cells = row.find_all(['th', 'td'])
-            cols = [cell.get_text(strip=True) for cell in cells]
-            if i == 0 and row.find('th'):
-                self.row_headers = cols
-                data = ','.join(cols) + '\n'
-            elif len(cols) >= 6:
-                if (year and cols[0] == year) or not year:
-                    data += ','.join(cols[:6]) + '\n'
-        return data
-
-    
-    def fetch_results(self, query):
-        parsed = self.parse_queries(query)
-        if not parsed:
-            print("[!] Invalid query format.")
-            return ''
-
-        for i, car in enumerate(parsed):
-            self.results += self.fetch_junkyard_data(
-                car['make'], car['model'], car['year'], ignore_headers=(i > 0)
-            )
-        self.set_results(self.results)
-        self.cache_result(self.results)
-        return self.results
+        return self.parse_site_table(rows,year)
 
     
     def display_options(self, options, numbers_on=True):
