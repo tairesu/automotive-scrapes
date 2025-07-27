@@ -22,7 +22,20 @@ class JunkyardScraper:
         self.results = ""
         self.cached_results = []
         self.row_headers = []
-    
+
+    def add_to_history(self, search):
+        with open(".search_history.txt", "a") as search_history_file:
+            search_history_file.write(f'\n{search}')
+
+
+    def get_search_history(self):
+        search_history = []
+        search_history_file = open(".search_history.txt", "r")
+        for line in search_history_file:
+            search_history.append(line.strip().replace("\n",""))
+        search_history_file.close()
+        print('(get_search_history) search_history: ', search_history)
+        return search_history
 
     def valid_query(self, query):
         
@@ -63,6 +76,7 @@ class JunkyardScraper:
             print("[!] Invalid query format.")
             return ''
 
+        self.add_to_history(query)
         for i, car in enumerate(parsed):
             self.results += self.fetch_junkyard_data(
                 car['make'], car['model'], car['year'], ignore_headers=(i > 0)
@@ -124,7 +138,7 @@ class JunkyardScraper:
             #Creates a list of inner text from the table row elements)
             cols = [cell.get_text(strip=True) for cell in cells]
             #If first time looping, and a table header element exists 
-            if i == 0 and row.find('th'):
+            if i == 0 and table_row.find('th'):
                 #set row headers to the table header text list 
                 self.row_headers = cols
                 #format table header text list to CSV 
@@ -173,18 +187,21 @@ class JunkyardScraper:
         return True if self.fetch_results(car) else False
 
     
-    def opt_selection(self):
+    def ask_what_next(self):
         callbacks = {
             'Sort Cars': self.handle_sort_by,
             'Filter Cars': self.handle_filter,
-            'Search Again': self.handle_search,
+            'View History': self.handle_search_history,
+            'New Search': self.handle_search,
+
         }
-        #print(f'[opt_selection] len cacched_results: {len(self.cached_results)}')
+        #print(f'[ask_what_next] len cacched_results: {len(self.cached_results)}')
         print("Actions:")
         if len(self.cached_results) > 1:
             callbacks['Go Back'] = self.handle_go_back
 
         opts = list(callbacks.keys())
+        #Display fiven options 
         self.display_options(opts, numbers_on=True)
         choice = input(f"What next? (0-{len(opts)-1}): ")
         if choice.isdigit() and int(choice) in range(len(opts)):
@@ -224,11 +241,23 @@ class JunkyardScraper:
             self.cache_result(sorted_df)
             return True
 
+    def search_history_selection(self):
+        print("\n Searching through history")
+        opts = self.get_search_history()
+        self.display_options(opts,numbers_on=True)
+        choice = input(f"Which search to execute? [0-{len(opts)-1}]: ")
+        if choice.lower() == 'exit':
+            return False
+        if choice.isdigit() and int(choice) in range(len(opts)):
+            self.results = ''
+            self.fetch_results(opts[int(choice)])
+            return True
+
 
     def handle_search(self):
         self.results = ''
-        if(self.ask_input(self.car_selection)):
-            self.handle_opts()
+        if(self.choose_opts(self.car_selection)):
+            self.choose_opts(self.ask_what_next)
         else:
             print("Goodbye")
 
@@ -240,11 +269,7 @@ class JunkyardScraper:
         #Sets results = previous cached results
         self.set_results(self.cached_results[-1])
         #Prompt for next steps
-        self.ask_input(self.opt_selection)
-
-
-    def handle_opts(self):
-        self.ask_input(self.opt_selection)
+        self.choose_opts(self.ask_what_next)
 
 
     def parse_df(self):
@@ -267,25 +292,34 @@ class JunkyardScraper:
 
     def handle_sort_by(self):
         if(self.results):
-            if(self.ask_input(self.sort_selection)):
-                self.ask_input(self.opt_selection)
+            if(self.choose_opts(self.sort_selection)):
+                self.choose_opts(self.ask_what_next)
         else:
             print("[!] There aren't any results to sort. \n")
+
+    def handle_search_history(self):
+         if(self.results):
+            try:
+                if(self.choose_opts(self.search_history_selection)):
+                    self.choose_opts(self.ask_what_next)
+            except Exception as e:
+                print('Try Again\n')
+                self.handle_filter(retries=retries-1)   
 
     
     def handle_filter(self, retries=3):
         if(self.results):
             try:
-                if(self.ask_input(self.filter_selection)):
-                    self.ask_input(self.opt_selection)
+                if(self.choose_opts(self.filter_selection)):
+                    self.choose_opts(self.ask_what_next)
             except Exception as e:
                 print('Try Again\n')
                 self.handle_filter(retries=retries-1)         
 
     
-    def ask_input(self, func):
+    def choose_opts(self, func):
         stop = func()
-        #print(f'[ask_input] func:{func} , stop is :{stop}')
+        #print(f'[choose_opts] func:{func} , stop is :{stop}')
         while not stop:
             pass
 
