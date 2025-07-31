@@ -8,11 +8,21 @@ def is_year_present(pattern):
     # print('(is_year_present) patterm:', pattern)
     return True if re.findall(r"^\d{2}\s|^\d{4}\s", pattern) else False
 
+def is_year_range_present(pattern):
+    return True if re.findall(r"(^\d{2}-\d{2})\s|(^\d{4}-\d{4})\s", pattern.strip()) else False
+
 def parse_car_year(pattern):
     desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", pattern)[0].strip()
     # print(f'parse_car_year({pattern}) desired_car_year:', len(desired_car_year))
     desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
     return desired_car_year
+
+def parse_car_year_range(pattern):
+    range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", pattern.strip())[0]
+    min_year = range_str.split('-')[0]
+    max_year = range_str.split('-')[1]
+
+    return (min_year,max_year)
 
 class JunkyardScraper:
     def __init__(self):
@@ -79,7 +89,7 @@ class JunkyardScraper:
         self.add_to_history(query)
         for i, car in enumerate(parsed):
             self.results += self.fetch_junkyard_data(
-                car['make'], car['model'], car['year'], ignore_headers=(i > 0)
+                car['make'], car['model'], car['year'], car['min_year'], car['max_year'], ignore_headers=(i > 0)
             )
         self.set_results(self.results)
         self.cache_result(self.results)
@@ -107,30 +117,39 @@ class JunkyardScraper:
     #Format raw car search into dictionary: (e.g "2004 Honda Civic" => {year:"2004", make:"Honda"...})
     def format_car_search(self, car_search):
         year = ''
+        min_year = ''
+        max_year = ''
         search = car_search.strip()
         #Break starting query string into list of components
-        search_components = search.split(' ') 
-        #If a year string is found...
+        search_components = search.split(' ')
+        print(search_components)
         if is_year_present(search):
             #Set the year 
+            print(f'Just a year in {search} query')
             year = parse_car_year(search)
-            #Set the make to second item in search components
             make = search_components[1].upper()
-            #Remove the year from components  
             search_components.pop(0)
+
+        elif is_year_range_present(search):
+            print(f'Year range present in {search} query')
+            min_year, max_year= parse_car_year_range(search)
+            make = search_components[1].upper()
+            search_components.pop(0)
+
         else:
             #Set the make to first item in search components
             make = search_components[0].upper()
         #Gets the model based on search componentslength 
         model = self.get_car_model(search_components)
-        return {'make': make, 'model': model, 'year': year}
+        print('[format_car_search] output dictionary: ', {'make': make, 'model': model, 'year': year, 'min_year': min_year, 'max_year': max_year})
+        return {'make': make, 'model': model, 'year': year, 'min_year': min_year, 'max_year': max_year}
 
 
     #cleans vehicle data from given HTML table rows 
-    def parse_site_table(self, table_rows, year='', mode='csv'):
+    def parse_site_table(self, table_rows, year='', min_year='', max_year ='', mode='csv'):
         if mode != 'csv':
             raise ValueError("Only CSV mode is currently supported.")
-        
+
         cleaned_data = ''
         for i, table_row in enumerate(table_rows):
             #Grab all th and td elements from a table row 
@@ -144,14 +163,17 @@ class JunkyardScraper:
                 #format table header text list to CSV 
                 cleaned_data = ','.join(cols) + '\n'
             elif len(cols) >= 6:
+                
                 #if year is found within the first column  Or year is not passed 
-                if (year and cols[0] == year) or not year:
+                if ((year and cols[0] == year)):
                     #Format table header text list as csv 
+                    cleaned_data += ','.join(cols[:6]) + '\n'
+                elif int(max_year) and int(min_year) and not year and int(cols[0]) in range(int(min_year), int(max_year)):
                     cleaned_data += ','.join(cols[:6]) + '\n'
         return cleaned_data
 
     
-    def fetch_junkyard_data(self, make='', model='',year='', ignore_headers=False):
+    def fetch_junkyard_data(self, make='', model='',year='',min_year='',max_year='', ignore_headers=False):
         url = f'https://www.jolietupullit.com/inventory/?make={make}&model={model}'
         response = requests.get(url, headers=self.headers)
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -159,14 +181,14 @@ class JunkyardScraper:
 
         if not table or not table.find(['td']):
             print(f"[!] Could not find {make} {model}'s")
-            return ''
+            return False
         
         rows = table.find_all('tr')
         if ignore_headers:
             #Skip the header row
             rows = rows[1:]
         
-        return self.parse_site_table(rows,year)
+        return self.parse_site_table(rows,year,min_year,max_year)
 
     
     def display_options(self, options, numbers_on=True):
