@@ -114,25 +114,26 @@ class JunkyardScraper:
         return model
 
 
-    #Format raw car search into dictionary: (e.g "2004 Honda Civic" => {year:"2004", make:"Honda"...})
-    def format_car_search(self, car_search):
+    #Format raw car_search str into dictionary:
+    #"2004 Honda Civic" => {year:"2004", make:"Honda"...})
+    #"2004-2007 Honda Civic" => {min_year:2004, max}
+    def format_car_search(self, car_search_str):
         year = ''
         min_year = ''
         max_year = ''
-        search = car_search.strip()
-        #Break starting query string into list of components
-        search_components = search.split(' ')
+        car_search_query = car_search_str.strip()
+        search_components = car_search_query.split(' ') #Breaks starting query string into list of components
         print(search_components)
-        if is_year_present(search):
+        if is_year_present(car_search_query):
             #Set the year 
-            print(f'Just a year in {search} query')
-            year = parse_car_year(search)
+            print(f'Just a year in {car_search_query} query')
+            year = parse_car_year(car_search_query)
             make = search_components[1].upper()
             search_components.pop(0)
 
-        elif is_year_range_present(search):
-            print(f'Year range present in {search} query')
-            min_year, max_year= parse_car_year_range(search)
+        elif is_year_range_present(car_search_query):
+            print(f'Year range present in {car_search_query} query')
+            min_year, max_year= parse_car_year_range(car_search_query)
             make = search_components[1].upper()
             search_components.pop(0)
 
@@ -144,12 +145,28 @@ class JunkyardScraper:
         print('[format_car_search] output dictionary: ', {'make': make, 'model': model, 'year': year, 'min_year': min_year, 'max_year': max_year})
         return {'make': make, 'model': model, 'year': year, 'min_year': min_year, 'max_year': max_year}
 
+    def filter_vehicle(self, cols, year, min_year,max_year):
+        result = ''
+        vehicle_is_year = (year != '' and cols[0] == year)
+        vehicle_in_year_range = (min_year!='' and max_year!='' and int(cols[0]) in range(int(min_year), int(max_year)))
+        ignore_year_and_range = (year =='' and min_year =='' and max_year =='')
+        #print(f'\n[parse_site_table_rows] vehicle:{cols[0] + " " + cols[1] + cols[2]}\nvehicle_has_year:{vehicle_is_year}\nvehicle_in_year_range:{vehicle_in_year_range}\nignore_year_and_range:{ignore_year_and_range}\n')
+        #if year is found within the first column  Or year is not passed 
+        if ignore_year_and_range or vehicle_is_year or vehicle_in_year_range:
+            #Format table header text list as csv 
+            result += ','.join(cols[:6]) + '\n'
+            print('[filter_vehicle] Found a match: ', result)
+        else:
+            result += ''
+
+
+        return result
 
     #cleans vehicle data from given HTML table rows 
-    def parse_site_table(self, table_rows, year='', min_year='', max_year ='', mode='csv'):
+    def parse_site_table_rows(self, table_rows, year='', min_year='', max_year ='', mode='csv'):
         if mode != 'csv':
             raise ValueError("Only CSV mode is currently supported.")
-
+        print('\nCalled parse_site_table_rows\n')
         cleaned_data = ''
         for i, table_row in enumerate(table_rows):
             #Grab all th and td elements from a table row 
@@ -163,13 +180,8 @@ class JunkyardScraper:
                 #format table header text list to CSV 
                 cleaned_data = ','.join(cols) + '\n'
             elif len(cols) >= 6:
+                cleaned_data += self.filter_vehicle(cols, year, min_year, max_year)
                 
-                #if year is found within the first column  Or year is not passed 
-                if ((year and cols[0] == year)):
-                    #Format table header text list as csv 
-                    cleaned_data += ','.join(cols[:6]) + '\n'
-                elif int(max_year) and int(min_year) and not year and int(cols[0]) in range(int(min_year), int(max_year)):
-                    cleaned_data += ','.join(cols[:6]) + '\n'
         return cleaned_data
 
     
@@ -188,7 +200,7 @@ class JunkyardScraper:
             #Skip the header row
             rows = rows[1:]
         
-        return self.parse_site_table(rows,year,min_year,max_year)
+        return self.parse_site_table_rows(rows,year,min_year,max_year)
 
     
     def display_options(self, options, numbers_on=True):
