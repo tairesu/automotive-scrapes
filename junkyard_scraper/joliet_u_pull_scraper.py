@@ -6,19 +6,23 @@ import re
 
 def is_year_present(pattern):
     # print('(is_year_present) patterm:', pattern)
-    return True if re.findall(r"^\d{2}\s|^\d{4}\s", pattern) else False
+    text = pattern.replace('–', '-').replace('—', '-')
+    return True if re.findall(r"^\d{2}\s|^\d{4}\s", text) else False
 
 def is_year_range_present(pattern):
-    return True if re.findall(r"(^\d{2}-\d{2})\s|(^\d{4}-\d{4})\s", pattern.strip()) else False
+    text = pattern.replace('–', '-').replace('—', '-')
+    return True if re.findall(r"^(\d{2}-\d{2}\s)|^(\d{4}-\d{4}\s)", text) else False
 
 def parse_car_year(pattern):
-    desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", pattern)[0].strip()
+    text = pattern.replace('–', '-').replace('—', '-')
+    desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", text)[0].strip()
     # print(f'parse_car_year({pattern}) desired_car_year:', len(desired_car_year))
     desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
     return desired_car_year
 
 def parse_car_year_range(pattern):
-    range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", pattern.strip())[0]
+    text = pattern.replace('–', '-').replace('—', '-')
+    range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
     min_year = range_str.split('-')[0]
     max_year = range_str.split('-')[1]
 
@@ -98,12 +102,9 @@ class JunkyardScraper:
 
     #Gets car model from list of search components 
     def get_car_model(self, car_search_components):
-        #If the search contains no dividing spaces 
-        if len(car_search_components) == 1:
-            #Set model to empty
-            model = ''
+        model = ''
         #If the search contains 1 dividing space 
-        elif len(car_search_components) == 2:
+        if len(car_search_components) == 2:
             #Set model to second item in search components
             model = car_search_components[1].upper()
         #If the search contains 2 diving spaces
@@ -123,16 +124,17 @@ class JunkyardScraper:
         max_year = ''
         car_search_query = car_search_str.strip()
         search_components = car_search_query.split(' ') #Breaks starting query string into list of components
-        print(search_components)
+        print(f'[format_car_search] is_year_present:', is_year_present(car_search_query))
+        print(f'[format_car_search] is_year_range_present:', is_year_range_present(car_search_query))
         if is_year_present(car_search_query):
             #Set the year 
-            print(f'Just a year in {car_search_query} query')
+            print(f'[format_car_search] Just a year in {car_search_query} query')
             year = parse_car_year(car_search_query)
             make = search_components[1].upper()
             search_components.pop(0)
 
         elif is_year_range_present(car_search_query):
-            print(f'Year range present in {car_search_query} query')
+            print(f'[format_car_search] Year range present in {car_search_query} query')
             min_year, max_year= parse_car_year_range(car_search_query)
             make = search_components[1].upper()
             search_components.pop(0)
@@ -155,7 +157,6 @@ class JunkyardScraper:
         if ignore_year_and_range or vehicle_is_year or vehicle_in_year_range:
             #Format table header text list as csv 
             result += ','.join(cols[:6]) + '\n'
-            print('[filter_vehicle] Found a match: ', result)
         else:
             result += ''
 
@@ -166,7 +167,6 @@ class JunkyardScraper:
     def parse_site_table_rows(self, table_rows, year='', min_year='', max_year ='', mode='csv'):
         if mode != 'csv':
             raise ValueError("Only CSV mode is currently supported.")
-        print('\nCalled parse_site_table_rows\n')
         cleaned_data = ''
         for i, table_row in enumerate(table_rows):
             #Grab all th and td elements from a table row 
@@ -193,7 +193,7 @@ class JunkyardScraper:
 
         if not table or not table.find(['td']):
             print(f"[!] Could not find {make} {model}'s")
-            return False
+            return ''
         
         rows = table.find_all('tr')
         if ignore_headers:
@@ -338,7 +338,7 @@ class JunkyardScraper:
                     self.choose_opts(self.ask_what_next)
             except Exception as e:
                 print('Try Again\n')
-                self.handle_filter(retries=retries-1)   
+                self.handle_search()   
 
     
     def handle_filter(self, retries=3):
