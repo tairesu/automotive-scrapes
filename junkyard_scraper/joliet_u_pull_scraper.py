@@ -150,7 +150,7 @@ class JunkyardScraper:
     def filter_vehicle(self, cols, year, min_year,max_year):
         result = ''
         vehicle_is_year = (year != '' and cols[0] == year)
-        vehicle_in_year_range = (min_year!='' and max_year!='' and int(cols[0]) in range(int(min_year), int(max_year)))
+        vehicle_in_year_range = (min_year!='' and max_year!='' and int(cols[0]) in range(int(min_year), int(max_year)+1))
         ignore_year_and_range = (year =='' and min_year =='' and max_year =='')
         #print(f'\n[parse_site_table_rows] vehicle:{cols[0] + " " + cols[1] + cols[2]}\nvehicle_has_year:{vehicle_is_year}\nvehicle_in_year_range:{vehicle_in_year_range}\nignore_year_and_range:{ignore_year_and_range}\n')
         #if year is found within the first column  Or year is not passed 
