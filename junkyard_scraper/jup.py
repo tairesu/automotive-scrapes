@@ -29,14 +29,23 @@ def parse_car_year_range(pattern):
     return (min_year,max_year)
 
 class JupSearch:
-    def __init__(self):
+    def __init__(self,search=None):
+        self.search = ''
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         }
+        self.yard_info = {'name': 'Joliet U Pull it'}
         self.results_csv = ""
         self.cached_results = []
         self.row_headers = []
         self.results = {}
+        #If search str is passed into class
+        if search:
+            #Skip the input selection process
+            self.fetch_results(search)
+        else:
+            #Start the selection process
+            self.handle_search()
 
     def add_to_history(self, search):
         with open(".search_history.txt", "a") as search_history_file:
@@ -197,7 +206,7 @@ class JupSearch:
                 cleaned_data = ','.join(cols) + '\n'
             elif len(cols) >= 6:
                 cleaned_data += self.filter_vehicle(cols, year, min_year, max_year)
-        print('["parse_site_table_rows"] cleaned_data]', cleaned_data)
+        #print('["parse_site_table_rows"] cleaned_data]', cleaned_data)
         return cleaned_data
 
     
@@ -307,6 +316,7 @@ class JupSearch:
     def handle_search(self):
         self.results_csv = ''
         if(self.choose_opts(self.car_selection)):
+            self.display_data()
             self.choose_opts(self.ask_what_next)
         else:
             print("Goodbye")
@@ -375,8 +385,22 @@ class JupSearch:
 
         return True
 
+    def get_results(self, output='dict'):
+        if output == 'dict':
+            return self.results
+        elif output == 'csv':
+            return self.results_csv
+        elif output == 'df':
+            return self.parse_df()
+
+    def display_data(self):
+        print('\n')
+        print('|', self.yard_info['name'])
+        print('\n')
+        print(self.results_csv)
+
 # Run it
 if __name__ == "__main__":
     scraper = JupSearch()
-    scraper.handle_search()
-    print(scraper.results)
+
+
