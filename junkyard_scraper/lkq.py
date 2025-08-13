@@ -6,6 +6,7 @@ class LKQSearch():
     def __init__(self, filters):
         self.filters = filters
         self.results = []
+        self.yard_info = {'name': 'LKQ (Blue island)'}
         self.base_url = "https://www.lkqpickyourpart.com/DesktopModules/pyp_vehicleInventory/getVehicleInventory.aspx"
         self.headers = {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -17,10 +18,6 @@ class LKQSearch():
         }
         self.params = {}
         self.handle_filters(self.filters)
-    def __str__(self):
-        if not self.results:
-            return "No results found."
-        self.display(self.results)
         
     def handle_filters(self, filters):
         #Parses the given filters into a comma separated array
@@ -31,8 +28,7 @@ class LKQSearch():
             conditionals, cleaned_filter = self.parse_filter_conditionals(filter.strip())
             #... grab matching vehicles from online inventory that matches the filter, and satisfies the conditional 
             self.fetch_inventory(filter=cleaned_filter, conditionals=conditionals)
-        #Then display those results
-        self.display(self.results)
+        
 
     def parse_filters(self, filters):
         return filters.split(',')
@@ -143,15 +139,25 @@ class LKQSearch():
         return inventory_car
 
 
-    def display(self, results):
-        if len(results) == 0:
+    def display_data(self):
+        if len(self.results) == 0:
             return ''
 
         print('\n')
+        print('|',self.yard_info['name'])
+        print('\n')
         print('Year, Make, Model, Row, Space, Color, VIN, Stock#, EntryDate')
-        for result in results:
+        for result in self.results:
             print(f"{result['year']}, {result['make']}, {result['model']}, {result['row']}, {result['space']}, {result['color']},{result['vin']}, {result['stock #']}, {result['available']}")
+    
+    def get_results(self, output='dict'):
+        if not self.results:
+            return ''
 
+        if output == 'dict':
+            return self.results
+        elif output == 'csv':
+            return self.results_csv
 
 # Example usage:
 if __name__ == '__main__':
@@ -162,5 +168,6 @@ if __name__ == '__main__':
             stop = True
 
         yardSearch = LKQSearch(filter)
+        yardSearch.display_data()
 
 
