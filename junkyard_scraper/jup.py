@@ -28,14 +28,15 @@ def parse_car_year_range(pattern):
 
     return (min_year,max_year)
 
-class JunkyardScraper:
+class JupSearch:
     def __init__(self):
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         }
-        self.results = ""
+        self.results_csv = ""
         self.cached_results = []
         self.row_headers = []
+        self.results = {}
 
     def add_to_history(self, search):
         with open(".search_history.txt", "a") as search_history_file:
@@ -62,8 +63,23 @@ class JunkyardScraper:
 # Chevrolet Tahoe, GMC Yukon, Cadillac Escalade, Chevrolet Silverado, GMC Sierra, Chevrolet Avalanche, Chevrolet Suburban, GMC Yukon XL, Chevrolet TrailBlazer, GMC Envoy, Buick Rainier, Saab 9-7X, Isuzu Ascender, Hummer H3, Chevrolet Colorado, GMC Canyon
 
     def set_results(self, results):
-        self.results = results
+        self.results_csv = results
+        self.results = self.parse_results_to_dict(self.results_csv)
 
+    def parse_results_to_dict(self, results):
+        result_list = []
+        result_dict = {}
+        result_lines= results.strip().split('\n')
+        for i,line in enumerate(result_lines):
+            if len(line) > 0:
+                line_data = line.split(',')
+                if i == 0:
+                    #set keys of result dict to empty string
+                    result_dict = {data.strip().lower():"" for data in line_data}
+                else:
+                    result_list.append({key:line_data[i] for i,key in enumerate(result_dict.keys())})
+        #print('[parse_results_to_dict] result_list:' , result_list)
+        return result_list
 
     def cache_result(self, result):
         self.cached_results.append(result)
@@ -72,6 +88,7 @@ class JunkyardScraper:
     # maps given string to dictionary of cars            
     def parse_queries(self, query):
         if not self.valid_query(query):
+            print("Invalid query")
             return False
         
         queries = []
@@ -91,12 +108,12 @@ class JunkyardScraper:
 
         self.add_to_history(query)
         for i, car in enumerate(parsed):
-            self.results += self.fetch_junkyard_data(
+            self.results_csv += self.fetch_junkyard_data(
                 car['make'], car['model'], car['year'], car['min_year'], car['max_year'], ignore_headers=(i > 0)
             )
-        self.set_results(self.results)
-        self.cache_result(self.results)
-        return self.results
+        self.set_results(self.results_csv)
+        self.cache_result(self.results_csv)
+        return self.results_csv
 
 
     #Gets car model from list of search components 
@@ -180,7 +197,7 @@ class JunkyardScraper:
                 cleaned_data = ','.join(cols) + '\n'
             elif len(cols) >= 6:
                 cleaned_data += self.filter_vehicle(cols, year, min_year, max_year)
-                
+        print('["parse_site_table_rows"] cleaned_data]', cleaned_data)
         return cleaned_data
 
     
@@ -282,13 +299,13 @@ class JunkyardScraper:
         if choice.lower() == 'exit':
             return False
         if choice.isdigit() and int(choice) in range(len(opts)):
-            self.results = ''
+            self.results_csv = ''
             self.fetch_results(opts[int(choice)])
             return True
 
 
     def handle_search(self):
-        self.results = ''
+        self.results_csv = ''
         if(self.choose_opts(self.car_selection)):
             self.choose_opts(self.ask_what_next)
         else:
@@ -306,8 +323,8 @@ class JunkyardScraper:
 
 
     def parse_df(self):
-        if (self.results):
-            data_io = io.StringIO(self.results)
+        if (self.results_csv):
+            data_io = io.StringIO(self.results_csv)
             df = pd.read_csv(data_io)
             return df
 
@@ -324,14 +341,14 @@ class JunkyardScraper:
 
 
     def handle_sort_by(self):
-        if(self.results):
+        if(self.results_csv):
             if(self.choose_opts(self.sort_selection)):
                 self.choose_opts(self.ask_what_next)
         else:
             print("[!] There aren't any results to sort. \n")
 
     def handle_search_history(self):
-         if(self.results):
+         if(self.results_csv):
             try:
                 if(self.choose_opts(self.search_history_selection)):
                     self.choose_opts(self.ask_what_next)
@@ -341,7 +358,7 @@ class JunkyardScraper:
 
     
     def handle_filter(self, retries=3):
-        if(self.results):
+        if(self.results_csv):
             try:
                 if(self.choose_opts(self.filter_selection)):
                     self.choose_opts(self.ask_what_next)
@@ -360,5 +377,6 @@ class JunkyardScraper:
 
 # Run it
 if __name__ == "__main__":
-    scraper = JunkyardScraper()
+    scraper = JupSearch()
     scraper.handle_search()
+    print(scraper.results)
