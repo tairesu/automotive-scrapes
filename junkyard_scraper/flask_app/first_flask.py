@@ -16,7 +16,7 @@ def search_yards():
 		search_str = request.json['search_str']
 		lkq_results = LKQSearch(search_str).get_data()
 		jup_results = JupSearch(search_str).get_data()
-		results.append(lkq_results)
 		results.append(jup_results)
+		results.append(lkq_results)
 		return jsonify(results)
 
