@@ -3,7 +3,8 @@ from bs4 import BeautifulSoup
 import re
 
 class LKQSearch():
-    def __init__(self, filters):
+    def __init__(self, filters, store_id=1582):
+        self.store_id = store_id
         self.filters = filters
         self.results = []
         self.yard_info = {'name': 'LKQ (Blue island)'}
@@ -26,8 +27,9 @@ class LKQSearch():
         for filter in filters_list:
             #capture the year/year range conditionals
             conditionals, cleaned_filter = self.parse_filter_conditionals(filter.strip())
+            print
             #... grab matching vehicles from online inventory that matches the filter, and satisfies the conditional 
-            self.fetch_inventory(filter=cleaned_filter, conditionals=conditionals)
+            #self.fetch_inventory(filter=cleaned_filter, conditionals=conditionals)
         
 
     def parse_filters(self, filters):

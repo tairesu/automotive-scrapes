@@ -14,7 +14,7 @@ def search_yards():
 	if request.method == "POST":
 		results = []
 		search_str = request.json['search_str']
-		lkq_results = LKQSearch(search_str).get_data()
+		lkq_results = LKQSearch(search_str, store_id).get_data()
 		jup_results = JupSearch(search_str).get_data()
 		results.append(jup_results)
 		results.append(lkq_results)
