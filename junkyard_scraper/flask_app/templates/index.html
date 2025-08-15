@@ -9,7 +9,6 @@
 	<input type="text" id="search_str" name="search_str"><button onclick="fetch_yard_data()">Search Junkyards</button>
 	<div id="results"></div>
 	<script type="text/javascript">
-		results = []
 		function fetch_yard_data(){
 			let search_str = document.querySelector('#search_str').value
 			fetch('http://localhost:5009/search',{
@@ -17,26 +16,30 @@
 				'method': "POST",
 				'headers':{"Content-Type": "application/json"}
 			}).then(response => response.json()).then(data => {
-				results = data;
-				console.log(data);
 				display_data(data)
 			})
 		}
 		function display_data(data){
+			console.log('Displaying data:', data)
 			results_div = document.querySelector('#results');
 			if(results_div.children)
 				results_div.innerHTML = ''
-
+			//Loop through each yard
 			for (var i=0; i<data.length;i++){
 				yard_data = data[i];
 				results = yard_data['results'];
+				console.log(results)
+				headers = Object.keys(results[0]);
 				table = document.createElement("table");
 				h1 = document.createElement("h1");
 				h4 = document.createElement("h4");
+				th = createTh(headers);
 				h4.innerText = yard_data['summary'];
 				h1.innerText = yard_data['name'];
 				results_div.appendChild(h1);
 				results_div.appendChild(h4);
+				table.appendChild(th);
+				// Loop through each result from the yard
 				for(var x = 0; x<results.length; x++){
 					let tr = createResultRow(results[x]);
 					table.appendChild(tr);
@@ -44,6 +47,15 @@
 				results_div.appendChild(table);
 			}
 
+		}
+		function createTh(headers){
+			tr = document.createElement("tr");
+			for(var w=0; w<headers.length; w++){
+				th = document.createElement('th');
+				th.innerText = headers[w];
+				tr.appendChild(th)
+			}
+			return tr
 		}
 		function createResultRow(result){
 			tr = document.createElement("tr");
@@ -56,6 +68,7 @@
 			}
 			return tr
 		}
+		
 	</script>
 </body>
 </html>
