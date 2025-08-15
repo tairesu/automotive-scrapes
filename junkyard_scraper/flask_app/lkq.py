@@ -23,7 +23,8 @@ class LKQSearch():
     def get_store_data(self, store_id):
         stores_data = {
             "1582": {"name": "LKQ Blue Island", "id": "1582"},
-            "1585": {"name": "LKQ Chicago South", "id": "1585"}
+            "1585": {"name": "LKQ Chicago South", "id": "1585"},
+            "1581": {"name": "LKQ Chicago", "id": "1581"},
         }
         return stores_data[store_id]
 
@@ -184,7 +185,9 @@ if __name__ == '__main__':
 
         yardSearch = LKQSearch(filter,store_id='1582')
         yardSearch2 = LKQSearch(filter,store_id='1585')
+        yardSearch2 = LKQSearch(filter,store_id='1581')
         yardSearch.display_data()
         yardSearch2.display_data()
+        yardSearch3.display_data()
 
 

@@ -17,8 +17,11 @@ def search_yards():
 		lkq_results = LKQSearch(search_str, store_id='1582').get_data()
 		jup_results = JupSearch(search_str).get_data()
 		lkq_results2 = LKQSearch(search_str, store_id='1585').get_data()
+		lkq_results3 = LKQSearch(search_str, store_id='1581').get_data()
 		results.append(jup_results)
 		results.append(lkq_results)
 		results.append(lkq_results2)
+		results.append(lkq_results3)
+		print(f'[search_yards in first_flask.py] results prior to jsonify:{jsonify(results)}')
 		return jsonify(results)
 

@@ -5,10 +5,12 @@ def handleSearch(search_str, output=False):
 	jup = JupSearch(search_str)
 	lkq = LKQSearch(search_str)
 	lkq2 = LKQSearch(search_str,store_id='1585')
+	lkq3 = LKQSearch(search_str,store_id='1581')
 	if output:
 		jup.display_data()
 		lkq.display_data()
 		lkq2.display_data()
+		lkq3.display_data()
 		return ''
 
 
