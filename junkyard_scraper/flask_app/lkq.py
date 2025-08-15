@@ -3,23 +3,31 @@ from bs4 import BeautifulSoup
 import re
 
 class LKQSearch():
-    def __init__(self, filters, store_id=1582):
-        self.store_id = store_id
+    def __init__(self, filters, store_id='1582'):
+        self.store = self.get_store_data(store_id)
         self.filters = filters
         self.results = []
-        self.yard_info = {'name': 'LKQ (Blue island)'}
         self.base_url = "https://www.lkqpickyourpart.com/DesktopModules/pyp_vehicleInventory/getVehicleInventory.aspx"
         self.headers = {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "*/*",
-            "Referer": "https://www.lkqpickyourpart.com/inventory/blue-island-1582/",
+            "Referer": f"https://www.lkqpickyourpart.com/inventory/blue-island-{store_id}/",
             "X-Requested-With": "XMLHttpRequest",
             "Accept-Encoding": "gzip, deflate, br",
             "Accept-Language": "en-US,en;q=0.9"
         }
+
         self.params = {}
         self.handle_filters(self.filters)
         
+    def get_store_data(self, store_id):
+        stores_data = {
+            "1582": {"name": "LKQ Blue Island", "id": "1582"},
+            "1585": {"name": "LKQ Chicago South", "id": "1585"}
+        }
+        return stores_data[store_id]
+
+
     def handle_filters(self, filters):
         #Parses the given filters into a comma separated array
         filters_list = self.parse_filters(filters)
@@ -27,9 +35,8 @@ class LKQSearch():
         for filter in filters_list:
             #capture the year/year range conditionals
             conditionals, cleaned_filter = self.parse_filter_conditionals(filter.strip())
-            print
             #... grab matching vehicles from online inventory that matches the filter, and satisfies the conditional 
-            #self.fetch_inventory(filter=cleaned_filter, conditionals=conditionals)
+            self.fetch_inventory(filter=cleaned_filter, conditionals=conditionals)
         
 
     def parse_filters(self, filters):
@@ -74,25 +81,25 @@ class LKQSearch():
         max_year = "20" + max_year if len(max_year) == 2 else max_year
         return (min_year, max_year)
 
-    def fetch_inventory(self, filter, store_id=1582,conditionals={}):
+    def fetch_inventory(self, filter,conditionals={}):
         page_number = 1
         #While valid page exists 
-        while(self.is_page_valid(page_number, filter, store_id, conditionals)):
+        while(self.is_page_valid(page_number, filter,  conditionals)):
             page_number += 1
         return self.results
 
 
-    def is_page_valid(self, page_number,filter,store_id, conditionals={}):
+    def is_page_valid(self, page_number,filter,conditionals={}):
         # Grabs all divs HTML 
-        vehicle_cards = self.fetch_inventory_html(page_number, filter, store_id, conditionals)
+        vehicle_cards = self.fetch_inventory_html(page_number, filter,  conditionals)
         return len(vehicle_cards) > 0
 
 
-    def fetch_inventory_html(self, page_number,filter,store_id, conditionals={}):
+    def fetch_inventory_html(self, page_number,filter, conditionals={}):
         self.params = {
             "page": page_number,
             "filter": filter,
-            "store": store_id
+            "store": self.store['id']
         }
         response = requests.get(self.base_url, headers=self.headers, params=self.params)
         soup = BeautifulSoup(response.text, "html.parser")
@@ -146,7 +153,7 @@ class LKQSearch():
             return ''
 
         print('\n')
-        print('|',self.yard_info['name'])
+        print('|',self.store['name'])
         print('\n')
         print('Year, Make, Model, Row, Space, Color, VIN, Stock#, EntryDate')
         for result in self.results:
@@ -162,7 +169,7 @@ class LKQSearch():
             return self.results_csv
 
     def get_data(self):
-        output_dict = self.yard_info
+        output_dict = self.store
         output_dict['summary'] = f'{len(self.results)} Vehicle(s) Found'
         output_dict['results'] = self.get_results()
         return output_dict
@@ -175,7 +182,9 @@ if __name__ == '__main__':
         if filter.strip().lower() in ['stop','halt','exit']:
             stop = True
 
-        yardSearch = LKQSearch(filter)
+        yardSearch = LKQSearch(filter,store_id='1582')
+        yardSearch2 = LKQSearch(filter,store_id='1585')
         yardSearch.display_data()
+        yardSearch2.display_data()
 
 
