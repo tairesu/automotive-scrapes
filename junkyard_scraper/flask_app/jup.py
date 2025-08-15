@@ -386,6 +386,8 @@ class JupSearch:
         return True
 
     def get_results(self, output='dict'):
+        if not self.results:
+            return ''
         if output == 'dict':
             return self.results
         elif output == 'csv':

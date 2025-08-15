@@ -1,74 +1,140 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Document</title>
-</head>
-<body>
-	<input type="text" id="search_str" name="search_str"><button onclick="fetch_yard_data()">Search Junkyards</button>
-	<div id="results"></div>
-	<script type="text/javascript">
-		function fetch_yard_data(){
-			let search_str = document.querySelector('#search_str').value
-			fetch('http://localhost:5009/search',{
-				'body': JSON.stringify({'search_str': search_str}),
-				'method': "POST",
-				'headers':{"Content-Type": "application/json"}
-			}).then(response => response.json()).then(data => {
-				display_data(data)
-			})
-		}
-		function display_data(data){
-			console.log('Displaying data:', data)
-			results_div = document.querySelector('#results');
-			if(results_div.children)
-				results_div.innerHTML = ''
-			//Loop through each yard
-			for (var i=0; i<data.length;i++){
-				yard_data = data[i];
-				results = yard_data['results'];
-				console.log(results)
-				headers = Object.keys(results[0]);
-				table = document.createElement("table");
-				h1 = document.createElement("h1");
-				h4 = document.createElement("h4");
-				th = createTh(headers);
-				h4.innerText = yard_data['summary'];
-				h1.innerText = yard_data['name'];
-				results_div.appendChild(h1);
-				results_div.appendChild(h4);
-				table.appendChild(th);
-				// Loop through each result from the yard
-				for(var x = 0; x<results.length; x++){
-					let tr = createResultRow(results[x]);
-					table.appendChild(tr);
-				}
-				results_div.appendChild(table);
-			}
+    <!DOCTYPE html>
+    <html lang="en">
 
-		}
-		function createTh(headers){
-			tr = document.createElement("tr");
-			for(var w=0; w<headers.length; w++){
-				th = document.createElement('th');
-				th.innerText = headers[w];
-				tr.appendChild(th)
-			}
-			return tr
-		}
-		function createResultRow(result){
-			tr = document.createElement("tr");
-			result_cols = Object.keys(result);
-			console.log(result_cols);
-			for(var w=0; w<result_cols.length; w++){
-				td = document.createElement('td');
-				td.innerText = result[result_cols[w]];
-				tr.appendChild(td)
-			}
-			return tr
-		}
-		
-	</script>
-</body>
-</html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+    </head>
+
+    <body>
+        <input type="text" id="search_str" name="search_str"><button onclick="fetch_yard_data()">Search Junkyards</button>
+        <div id="results"></div>
+        <script type="text/javascript">
+        post_data = []
+    function fetch_yard_data() {
+        let search_str = document.querySelector('#search_str').value
+        fetch('http://localhost:5009/search', {
+            'body': JSON.stringify({ 'search_str': search_str }),
+            'method': "POST",
+            'headers': { "Content-Type": "application/json" }
+        }).then(response => response.json()).then(data => {
+        	post_data = data;
+            display_data(data)
+        })
+    }
+
+    function display_data(data) {
+        console.log('Displaying data:', data)
+        results_div = document.querySelector('#results');
+        if (results_div.children)
+            results_div.innerHTML = ''
+        //Loop through each yard
+        for (var i = 0; i < data.length; i++) {
+            yard_data = data[i];
+            results = yard_data['results'];
+            if(results.length > 0) {
+
+	            table = createTable(yard_data);
+	            h1 = document.createElement("h1");
+	            h4 = document.createElement("h4");
+	            h4.innerText = yard_data['summary'];
+	            h1.innerText = yard_data['name'];
+	            results_div.appendChild(h1);
+	            results_div.appendChild(h4);
+	            results_div.appendChild(table);
+            } else {
+            	continue;
+            }
+        }
+
+    }
+
+   function createTh(headers) {
+        tr = document.createElement("tr");
+        for (var w = 0; w < headers.length; w++) {
+            field_name = headers[w];
+            th = document.createElement('th');
+            th.innerText = field_name;
+            th.name = field_name;
+            //No spaces in element id
+            th.id = field_name.replaceAll(' ', '-');
+            th.addEventListener('click',(ele)=>{
+                sortTable(ele);
+            });
+            tr.appendChild(th)
+        }
+        return tr
+    }
+
+    function createTable(yard_data) {
+        table = document.createElement("table");
+        results = yard_data['results'];
+        if (results.length > 0) {
+            table.name = yard_data['name'];
+            table.id = yard_data['name'].toLowerCase().replaceAll(' ', '-');
+            
+            createTableRows(table,results);
+            // Loop through each result from the yard
+            
+        }
+        return table
+    }
+    function createTableRows(table, results){
+    	headers = Object.keys(results[0]);
+        th = createTh(headers);
+        table.appendChild(th);
+    	for (var x = 0; x < results.length; x++) {
+                let tr = createResultRow(results[x]);
+                table.appendChild(tr);
+            }
+    }
+    function deleteTableRows(table){
+    	//table = document.querySelector('#' + table_id);
+    	table.innerHTML = ''
+    }
+    /*    function updateTable(table, results ){
+        table = document.getElementById()*/
+
+    function createResultRow(result) {
+        tr = document.createElement("tr");
+        result_cols = Object.keys(result);
+        //console.log(result_cols);
+        for (var w = 0; w < result_cols.length; w++) {
+            td = document.createElement('td');
+            td.innerText = result[result_cols[w]];
+            tr.appendChild(td);
+        }
+        return tr
+    }
+
+    function sortTable(clicked_ele) {
+    	field_name = clicked_ele.srcElement.name;
+        parent_table = clicked_ele.srcElement.parentElement.parentElement;
+        parent_table_id = parent_table.id;
+        parent_yard_name = parent_table.previousElementSibling.previousElementSibling.innerText;
+        yard_data = get_yard_data(parent_yard_name);
+        results = yard_data['results'];
+        //Now that we have the id of the table / junkyard name
+        if (results != {}) {
+        	//console.log(results);
+        	sorted_results = results.sort((a, b) => a[field_name].localeCompare(b[field_name]));
+        	updateTable(parent_table_id, yard_data);
+        }
+    }
+    function get_yard_data(yard_name){
+    	yard_data = post_data.find(yard_results => yard_results['name'] == yard_name);
+    	return (yard_data) ? yard_data : []
+    }
+    function updateTable(table_id, yard_data){
+    	table = document.querySelector('#' + table_id);
+    	deleteTableRows(table);
+    	createTableRows(table,yard_data['results']);
+
+    }
+        </script>
+    
+    
+    </body>
+
+    </html>
