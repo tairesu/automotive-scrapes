@@ -36,6 +36,7 @@ class LKQSearch():
         for filter in filters_list:
             #capture the year/year range conditionals
             conditionals, cleaned_filter = self.parse_filter_conditionals(filter.strip())
+            print('[handle_filters in lkq.py] conditionals going into fetch:', conditionals)
             #... grab matching vehicles from online inventory that matches the filter, and satisfies the conditional 
             self.fetch_inventory(filter=cleaned_filter, conditionals=conditionals)
         
@@ -103,9 +104,10 @@ class LKQSearch():
             "store": self.store['id']
         }
         response = requests.get(self.base_url, headers=self.headers, params=self.params)
+        #print("LKQSearch for", self.store['name'], ' fetch_inventory_html request params=',self.params)
         soup = BeautifulSoup(response.text, "html.parser")
         vehicle_cards = soup.find_all(class_="pypvi_resultRow")
-        if len(vehicle_cards) > 1:
+        if len(vehicle_cards) > 0:
             self.handle_vehicle_cards_html(vehicle_cards, conditionals)
         return vehicle_cards
 
@@ -113,6 +115,7 @@ class LKQSearch():
     def handle_vehicle_cards_html(self, vehicle_cards=[], conditionals={}):
         for card in vehicle_cards:
             vehicle_data = self.parse_card_html(card)
+            #print(f'LKQSearch({}) handle_vehicle_cards_html() vehicle_data: {vehicle_data}')
             if self.satisfies_conditionals(vehicle_data, conditionals):
                 self.results.append(vehicle_data)
 
@@ -185,7 +188,7 @@ if __name__ == '__main__':
 
         yardSearch = LKQSearch(filter,store_id='1582')
         yardSearch2 = LKQSearch(filter,store_id='1585')
-        yardSearch2 = LKQSearch(filter,store_id='1581')
+        yardSearch3 = LKQSearch(filter,store_id='1581')
         yardSearch.display_data()
         yardSearch2.display_data()
         yardSearch3.display_data()
