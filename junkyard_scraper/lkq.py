@@ -2,12 +2,67 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
-class LKQSearch():
+class Search():
+    def __init__(self, query):
+        self.query = query
+        self.results = []
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+        
+    def is_year_present(self) -> bool:
+    # print('(is_year_present) patterm:', pattern)
+        text = self.query.replace('–', '-').replace('—', '-')
+        return True if re.findall(r"^\d{2}\s|^\d{4}\s", text) else False
+
+    def is_year_range_present(self) -> bool:
+        text = self.query.replace('–', '-').replace('—', '-')
+        return True if re.findall(r"^(\d{2}-\d{2}\s)|^(\d{4}-\d{4}\s)", text) else False
+    
+    def extract_car_year(self) -> str:
+        text = self.query.replace('–', '-').replace('—', '-')
+        desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", text)[0].strip()
+        # print(f'extract_car_year({self}) desired_car_year:', len(desired_car_year))
+        desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
+        return desired_car_year
+
+    def extract_car_year_range(self) -> tuple:
+        text = self.query.replace('–', '-').replace('—', '-')
+        range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
+        min_year = range_str.split('-')[0]
+        max_year = range_str.split('-')[1]
+        min_year = "20" + min_year if len(min_year) == 2 else min_year
+        max_year = "20" + max_year if len(max_year) == 2 else max_year
+        return (min_year, max_year)
+    
+    def extract_query_conditionals(self, query) -> tuple:
+        conditionals = {}
+        semantics = query.strip().split(' ')
+        
+        if self.is_year_present(query):
+            conditionals['year'] = self.extract_car_year(query)
+            semantics.pop(0)
+        elif not self.is_year_present(query) and self.is_year_range_present(query):
+            conditionals['minYear'], conditionals['maxYear'] = self.extract_car_year_range(query)
+            semantics.pop(0)
+        cleaned_query = ' '.join(semantics)
+        return conditionals, cleaned_query
+    
+    def get_results(self, output='dict'):
+        if not self.results:
+            return ''
+
+        if output == 'dict':
+            return self.results
+        elif output == 'csv':
+            return self.results_csv
+    
+class LKQSearch(Search):
     """
     Represents a search on the LKQ junkyard data
     
     Attributes:
-        filters (str): The raw search query in string form.
+        query (str): The raw search query in string form.
         results (list): Holds the inventory data.
         yard_info (dict): Metadata about the yard itself.
         base_url (str): URL holding the inventory data.
@@ -15,15 +70,13 @@ class LKQSearch():
         params (dict):  URL parameters for requesting site data  
     """
     
-    def __init__(self, filters):
+    def __init__(self):
         """
         Initializes search instance
         
         Args: 
-            filters (str): The raw search query 
+            querys (str): The raw search query 
         """
-        self.filters = filters
-        self.results = []
         self.yard_info = {'name': 'LKQ (Blue island)'}
         self.base_url = "https://www.lkqpickyourpart.com/DesktopModules/pyp_vehicleInventory/getVehicleInventory.aspx"
         self.headers = {
@@ -35,75 +88,36 @@ class LKQSearch():
             "Accept-Language": "en-US,en;q=0.9"
         }
         self.params = {}
-        self.handle_filters(self.filters)
+        self.handle_query(self.query)
         
-    def handle_filters(self, filters):
-        filters_list = filters.split(',')
+    def handle_query(self, query):
+        querys_list = querys.split(',')
         #Loop through that array..
-        for filter in filters_list:
+        for query in querys_list:
             #capture the year/year range conditionals
-            conditionals, cleaned_filter = self.extract_filter_conditionals(filter.strip())
-            #... grab matching vehicles from online inventory that matches the filter, and satisfies the conditional 
-            self.fetch_inventory(filter=cleaned_filter, conditionals=conditionals)
+            conditionals, cleaned_query = self.extract_query_conditionals(query.strip())
+            #... grab matching vehicles from online inventory that matches the query, and satisfies the conditional 
+            self.fetch_inventory(query=cleaned_query, conditionals=conditionals)
         
 
-    def extract_filter_conditionals(self, filter):
-        conditionals = {}
-        semantics = filter.strip().split(' ')
-        
-        if self.is_year_present(filter):
-            conditionals['year'] = self.extract_car_year(filter)
-            semantics.pop(0)
-        elif not self.is_year_present(filter) and self.is_year_range_present(filter):
-            conditionals['minYear'], conditionals['maxYear'] = self.extract_car_year_range(filter)
-            semantics.pop(0)
-        cleaned_filter = ' '.join(semantics)
-        return conditionals, cleaned_filter
-
-
-    def is_year_present(self, pattern):
-    # print('(is_year_present) patterm:', pattern)
-        text = pattern.replace('–', '-').replace('—', '-')
-        return True if re.findall(r"^\d{2}\s|^\d{4}\s", text) else False
-
-    def extract_car_year(self, pattern):
-        text = pattern.replace('–', '-').replace('—', '-')
-        desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", text)[0].strip()
-        # print(f'extract_car_year({pattern}) desired_car_year:', len(desired_car_year))
-        desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
-        return desired_car_year
-
-    def is_year_range_present(self, pattern):
-        text = pattern.replace('–', '-').replace('—', '-')
-        return True if re.findall(r"^(\d{2}-\d{2}\s)|^(\d{4}-\d{4}\s)", text) else False
-
-    def extract_car_year_range(self, pattern):
-        text = pattern.replace('–', '-').replace('—', '-')
-        range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
-        min_year = range_str.split('-')[0]
-        max_year = range_str.split('-')[1]
-        min_year = "20" + min_year if len(min_year) == 2 else min_year
-        max_year = "20" + max_year if len(max_year) == 2 else max_year
-        return (min_year, max_year)
-
-    def fetch_inventory(self, filter, store_id=1582,conditionals={}):
+    def fetch_inventory(self, query, store_id=1582,conditionals={}):
         page_number = 1
         #While valid page exists 
-        while(self.is_page_valid(page_number, filter, store_id, conditionals)):
+        while(self.is_page_valid(page_number, query, store_id, conditionals)):
             page_number += 1
         return self.results
 
 
-    def is_page_valid(self, page_number,filter,store_id, conditionals={}):
+    def is_page_valid(self, page_number,query,store_id, conditionals={}) -> bool:
         # Grabs all divs HTML 
-        vehicle_cards = self.fetch_inventory_html(page_number, filter, store_id, conditionals)
+        vehicle_cards = self.fetch_inventory_html(page_number, query, store_id, conditionals)
         return len(vehicle_cards) > 0
 
 
-    def fetch_inventory_html(self, page_number,filter,store_id, conditionals={}):
+    def fetch_inventory_html(self, page_number,query,store_id, conditionals={}) -> list:
         self.params = {
             "page": page_number,
-            "filter": filter,
+            "filter": query,
             "store": store_id
         }
         response = requests.get(self.base_url, headers=self.headers, params=self.params)
@@ -120,7 +134,7 @@ class LKQSearch():
             if self.satisfies_conditionals(vehicle_data, conditionals):
                 self.results.append(vehicle_data)
 
-    def satisfies_conditionals(self, vehicle_data, conditionals={}):
+    def satisfies_conditionals(self, vehicle_data, conditionals={}) -> bool:
         vehicle_matches_year = ('year' in conditionals.keys() and vehicle_data['year'] == conditionals['year'])
         vehicle_in_year_range = ('minYear' in conditionals.keys() and int(vehicle_data['year']) in range(int(conditionals['minYear']), int(conditionals['maxYear']) + 1))
         ignore_year_and_range = (len(conditionals.keys()) == 0)
@@ -130,7 +144,7 @@ class LKQSearch():
 
 
     # Turns matching vehicle card HTML and formats the content into a dictionary
-    def extract_card_html(self,card_html) :
+    def extract_card_html(self,card_html) -> dict:
         inventory_car = {}
         year_make_model = card_html.find(class_="pypvi_ymm").get_text(' ', strip=True)
         inventory_car['year'] = year_make_model.split(' ')[0]
@@ -164,24 +178,16 @@ class LKQSearch():
         for result in self.results:
             print(f"{result['year']}, {result['make']}, {result['model']}, {result['row']}, {result['space']}, {result['color']},{result['vin']}, {result['stock #']}, {result['available']}")
     
-    def get_results(self, output='dict'):
-        if not self.results:
-            return ''
-
-        if output == 'dict':
-            return self.results
-        elif output == 'csv':
-            return self.results_csv
 
 # Example usage:
 if __name__ == '__main__':
     stop = False
     while(stop != True):
-        filter = input('\nEnter year, make, model: ')
-        if filter.strip().lower() in ['stop','halt','exit']:
+        query = input('\nEnter year, make, model: ')
+        if query.strip().lower() in ['stop','halt','exit']:
             stop = True
 
-        yardSearch = LKQSearch(filter)
+        yardSearch = LKQSearch(query)
         yardSearch.display_data()
 
 
