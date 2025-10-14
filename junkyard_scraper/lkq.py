@@ -3,7 +3,25 @@ from bs4 import BeautifulSoup
 import re
 
 class LKQSearch():
+    """
+    Represents a search on the LKQ junkyard data
+    
+    Attributes:
+        filters (str): The raw search query in string form.
+        results (list): Holds the inventory data.
+        yard_info (dict): Metadata about the yard itself.
+        base_url (str): URL holding the inventory data.
+        headers (dict): Content headers for web scraping.
+        params (dict):  URL parameters for requesting site data  
+    """
+    
     def __init__(self, filters):
+        """
+        Initializes search instance
+        
+        Args: 
+            filters (str): The raw search query 
+        """
         self.filters = filters
         self.results = []
         self.yard_info = {'name': 'LKQ (Blue island)'}
@@ -20,28 +38,24 @@ class LKQSearch():
         self.handle_filters(self.filters)
         
     def handle_filters(self, filters):
-        #Parses the given filters into a comma separated array
-        filters_list = self.parse_filters(filters)
+        filters_list = filters.split(',')
         #Loop through that array..
         for filter in filters_list:
             #capture the year/year range conditionals
-            conditionals, cleaned_filter = self.parse_filter_conditionals(filter.strip())
+            conditionals, cleaned_filter = self.extract_filter_conditionals(filter.strip())
             #... grab matching vehicles from online inventory that matches the filter, and satisfies the conditional 
             self.fetch_inventory(filter=cleaned_filter, conditionals=conditionals)
         
 
-    def parse_filters(self, filters):
-        return filters.split(',')
-
-    def parse_filter_conditionals(self, filter):
+    def extract_filter_conditionals(self, filter):
         conditionals = {}
         semantics = filter.strip().split(' ')
         
         if self.is_year_present(filter):
-            conditionals['year'] = self.parse_car_year(filter)
+            conditionals['year'] = self.extract_car_year(filter)
             semantics.pop(0)
         elif not self.is_year_present(filter) and self.is_year_range_present(filter):
-            conditionals['minYear'], conditionals['maxYear'] = self.parse_car_year_range(filter)
+            conditionals['minYear'], conditionals['maxYear'] = self.extract_car_year_range(filter)
             semantics.pop(0)
         cleaned_filter = ' '.join(semantics)
         return conditionals, cleaned_filter
@@ -52,10 +66,10 @@ class LKQSearch():
         text = pattern.replace('–', '-').replace('—', '-')
         return True if re.findall(r"^\d{2}\s|^\d{4}\s", text) else False
 
-    def parse_car_year(self, pattern):
+    def extract_car_year(self, pattern):
         text = pattern.replace('–', '-').replace('—', '-')
         desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", text)[0].strip()
-        # print(f'parse_car_year({pattern}) desired_car_year:', len(desired_car_year))
+        # print(f'extract_car_year({pattern}) desired_car_year:', len(desired_car_year))
         desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
         return desired_car_year
 
@@ -63,7 +77,7 @@ class LKQSearch():
         text = pattern.replace('–', '-').replace('—', '-')
         return True if re.findall(r"^(\d{2}-\d{2}\s)|^(\d{4}-\d{4}\s)", text) else False
 
-    def parse_car_year_range(self, pattern):
+    def extract_car_year_range(self, pattern):
         text = pattern.replace('–', '-').replace('—', '-')
         range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
         min_year = range_str.split('-')[0]
@@ -102,7 +116,7 @@ class LKQSearch():
 
     def handle_vehicle_cards_html(self, vehicle_cards=[], conditionals={}):
         for card in vehicle_cards:
-            vehicle_data = self.parse_card_html(card)
+            vehicle_data = self.extract_card_html(card)
             if self.satisfies_conditionals(vehicle_data, conditionals):
                 self.results.append(vehicle_data)
 
@@ -116,7 +130,7 @@ class LKQSearch():
 
 
     # Turns matching vehicle card HTML and formats the content into a dictionary
-    def parse_card_html(self,card_html) :
+    def extract_card_html(self,card_html) :
         inventory_car = {}
         year_make_model = card_html.find(class_="pypvi_ymm").get_text(' ', strip=True)
         inventory_car['year'] = year_make_model.split(' ')[0]
