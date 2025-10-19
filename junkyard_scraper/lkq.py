@@ -4,7 +4,7 @@ import re
 
 class Search():
     def __init__(self, query):
-        self.query = query
+        self.query = query.strip()
         self.results = []
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -19,31 +19,44 @@ class Search():
         text = self.query.replace('–', '-').replace('—', '-')
         return True if re.findall(r"^(\d{2}-\d{2}\s)|^(\d{4}-\d{4}\s)", text) else False
     
-    def extract_car_year(self) -> str:
+    def extract_year(self) -> str:
+        if not self.is_year_present:
+            raise ValueError('Year needs to be present for extraction')
         text = self.query.replace('–', '-').replace('—', '-')
-        desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", text)[0].strip()
-        # print(f'extract_car_year({self}) desired_car_year:', len(desired_car_year))
+        try: 
+            desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", text)[0].strip()
+        except IndexError:
+            raise ValueError(f'Cannot extract year from query:{self.query}')
+            
+        # print(f'extract_year({self}) desired_car_year:', len(desired_car_year))
         desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
-        return desired_car_year
+        return desired_car_year 
 
-    def extract_car_year_range(self) -> tuple:
+    def extract_year_range(self) -> tuple:
+        if not self.is_year_range_present:
+            raise ValueError('Car Year range needs to be present for extraction')
+        
         text = self.query.replace('–', '-').replace('—', '-')
-        range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
-        min_year = range_str.split('-')[0]
-        max_year = range_str.split('-')[1]
+        try:
+            range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
+            min_year = range_str.split('-')[0]
+            max_year = range_str.split('-')[1]
+        except IndexError:
+            raise ValueError(f'Cannot extract car_year_range from query: {self.query}')
+        
         min_year = "20" + min_year if len(min_year) == 2 else min_year
         max_year = "20" + max_year if len(max_year) == 2 else max_year
         return (min_year, max_year)
     
-    def extract_query_conditionals(self, query) -> tuple:
+    def extract_conditionals(self) -> tuple:
         conditionals = {}
-        semantics = query.strip().split(' ')
+        semantics = self.query.split(' ')
         
-        if self.is_year_present(query):
-            conditionals['year'] = self.extract_car_year(query)
+        if self.is_year_present:
+            conditionals['year'] = self.extract_year()
             semantics.pop(0)
-        elif not self.is_year_present(query) and self.is_year_range_present(query):
-            conditionals['minYear'], conditionals['maxYear'] = self.extract_car_year_range(query)
+        elif not self.is_year_present and self.is_year_range_present:
+            conditionals['minYear'], conditionals['maxYear'] = self.extract_year_range()
             semantics.pop(0)
         cleaned_query = ' '.join(semantics)
         return conditionals, cleaned_query
@@ -56,6 +69,7 @@ class Search():
             return self.results
         elif output == 'csv':
             return self.results_csv
+    
     
 class LKQSearch(Search):
     """
@@ -70,13 +84,14 @@ class LKQSearch(Search):
         params (dict):  URL parameters for requesting site data  
     """
     
-    def __init__(self):
+    def __init__(self, query):
         """
         Initializes search instance
         
         Args: 
             querys (str): The raw search query 
         """
+        super().__init__(query)
         self.yard_info = {'name': 'LKQ (Blue island)'}
         self.base_url = "https://www.lkqpickyourpart.com/DesktopModules/pyp_vehicleInventory/getVehicleInventory.aspx"
         self.headers = {
@@ -88,14 +103,14 @@ class LKQSearch(Search):
             "Accept-Language": "en-US,en;q=0.9"
         }
         self.params = {}
-        self.handle_query(self.query)
+        #self.handle_query(self.query)
         
-    def handle_query(self, query):
-        querys_list = querys.split(',')
+    def handle_query(self):
+        querys_list = self.query.split(',')
         #Loop through that array..
         for query in querys_list:
             #capture the year/year range conditionals
-            conditionals, cleaned_query = self.extract_query_conditionals(query.strip())
+            conditionals, cleaned_query = super().extract_conditionals()
             #... grab matching vehicles from online inventory that matches the query, and satisfies the conditional 
             self.fetch_inventory(query=cleaned_query, conditionals=conditionals)
         
