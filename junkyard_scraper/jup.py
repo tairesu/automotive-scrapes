@@ -1,32 +1,42 @@
+"""
+
+I wondered if I could save time searching through the inventory of a junkyard. 
+
+My all-time favorite junkyard has a website with only two dropdown boxes:
+
+1) A dropdown to choose the make of a car
+2) And a dropdown to choose the model 
+
+Choosing the make of a car updates the second dropdown with car models belonging to that make.
+(If I chose Chevrolet in the first dropdown, then the second dropdown would have Tahoe, Camaro, Cruze, etc., as options)
+
+Choosing a model makes their up to date results appear.  
+(If I chose Chevrolet Camaro, I'll see all the Chevrolet Camaro's in their yard!)
+
+This was cool until I needed to find and pull a specific engine: An aluminum 4th Gen LS block.
+That engine showed up in at least 12 different make/model combinations... in specific years!
+
+I had to:
+0) open the site
+1) choose a make and model (Chevrolet Tahoe)
+2) scroll through all the Chevrolet Tahoes (unsorted) 
+3) annotate (screen shot or write the row numbers)
+4) Repeat 1-3 at least 11 more times 
+5) Manually organize the results so you don't repeat rows (or at least try to)
+6) Look for the engine in the yard
+7) Find the engine, or repeat steps 0-7 another time
+
+I was tired of this process the first time I hit step 4. 
+Their searching system was inefficient for my purposes. 
+So, I built my own searching system. 
+
+"""
+
 from bs4 import BeautifulSoup
 import requests
 import io
 import pandas as pd
 import re
-
-def is_year_present(pattern):
-    # print('(is_year_present) patterm:', pattern)
-    text = pattern.replace('–', '-').replace('—', '-')
-    return True if re.findall(r"^\d{2}\s|^\d{4}\s", text) else False
-
-def is_year_range_present(pattern):
-    text = pattern.replace('–', '-').replace('—', '-')
-    return True if re.findall(r"^(\d{2}-\d{2}\s)|^(\d{4}-\d{4}\s)", text) else False
-
-def parse_car_year(pattern):
-    text = pattern.replace('–', '-').replace('—', '-')
-    desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", text)[0].strip()
-    # print(f'parse_car_year({pattern}) desired_car_year:', len(desired_car_year))
-    desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
-    return desired_car_year
-
-def parse_car_year_range(pattern):
-    text = pattern.replace('–', '-').replace('—', '-')
-    range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
-    min_year = range_str.split('-')[0]
-    max_year = range_str.split('-')[1]
-
-    return (min_year,max_year)
 
 class JupSearch:
     def __init__(self,search=None):
@@ -62,14 +72,11 @@ class JupSearch:
         return search_history
 
     def valid_query(self, query):
-        
         car_queries = query.strip().split(',')
         for request in car_queries:
             if len(request.strip().split(' ')) > 4:
                 return False
         return True
-
-# Chevrolet Tahoe, GMC Yukon, Cadillac Escalade, Chevrolet Silverado, GMC Sierra, Chevrolet Avalanche, Chevrolet Suburban, GMC Yukon XL, Chevrolet TrailBlazer, GMC Envoy, Buick Rainier, Saab 9-7X, Isuzu Ascender, Hummer H3, Chevrolet Colorado, GMC Canyon
 
     def set_results(self, results):
         self.results_csv = results
@@ -78,7 +85,7 @@ class JupSearch:
     def parse_results_to_dict(self, results):
         result_list = []
         result_dict = {}
-        result_lines= results.strip().split('\n')
+        result_lines = results.strip().split('\n')
         for i,line in enumerate(result_lines):
             if len(line) > 0:
                 line_data = line.split(',')
@@ -398,6 +405,31 @@ class JupSearch:
         print('|', self.yard_info['name'])
         print('\n')
         print(self.results_csv)
+
+
+def is_year_present(pattern):
+    # print('(is_year_present) patterm:', pattern)
+    text = pattern.replace('–', '-').replace('—', '-')
+    return True if re.findall(r"^\d{2}\s|^\d{4}\s", text) else False
+
+def is_year_range_present(pattern):
+    text = pattern.replace('–', '-').replace('—', '-')
+    return True if re.findall(r"^(\d{2}-\d{2}\s)|^(\d{4}-\d{4}\s)", text) else False
+
+def parse_car_year(pattern):
+    text = pattern.replace('–', '-').replace('—', '-')
+    desired_car_year = re.findall(r"^\d{2}\s|^\d{4}\s", text)[0].strip()
+    # print(f'parse_car_year({pattern}) desired_car_year:', len(desired_car_year))
+    desired_car_year = desired_car_year if len(desired_car_year) == 4 else f"20{desired_car_year}"
+    return desired_car_year
+
+def parse_car_year_range(pattern):
+    text = pattern.replace('–', '-').replace('—', '-')
+    range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
+    min_year = range_str.split('-')[0]
+    max_year = range_str.split('-')[1]
+
+    return (min_year,max_year)
 
 # Run it
 if __name__ == "__main__":
