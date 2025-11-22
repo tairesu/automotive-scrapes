@@ -87,7 +87,6 @@ class JunkyardScraper:
 
 
     def fetch_results(self, query):
-        t0 = time.time()
         parsed = self.parse_queries(query)
         if not parsed:
             print("[!] Invalid query format.")
@@ -100,8 +99,6 @@ class JunkyardScraper:
             )
         self.set_results(self.results)
         self.cache_result(self.results)
-        t1 = time.time()
-        print(f"{t1 - t0} seconds elapsed to fetch", len(self.results.split('\n')) - 2," rows")
         return self.results
 
 
@@ -192,8 +189,13 @@ class JunkyardScraper:
     
     def fetch_junkyard_data(self, make='', model='',year='',min_year='',max_year='', ignore_headers=False):
         url = f'https://www.jolietupullit.com/inventory/?make={make}&model={model}'
-        response = requests.get(url, headers=self.headers)
+        #Create a session
+        session = requests.Session()
+
+        #Use session to make requests
+        response = session.get(url, headers=self.headers)
         soup = BeautifulSoup(response.text, 'lxml')
+        session.close()
         table = soup.find(id="cars-table")
 
         if not table or not table.find(['td']):
