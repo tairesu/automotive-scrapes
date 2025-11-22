@@ -5,6 +5,7 @@ import pandas as pd
 import re
 import time
 import cProfile
+from concurrent.futures import ThreadPoolExecutor
 
 def is_year_present(pattern):
     # print('(is_year_present) patterm:', pattern)
@@ -93,10 +94,15 @@ class JunkyardScraper:
             return ''
 
         self.add_to_history(query)
-        for i, car in enumerate(parsed):
-            self.results += self.fetch_junkyard_data(
-                car['make'], car['model'], car['year'], car['min_year'], car['max_year'], ignore_headers=(i > 0)
-            )
+        print(parsed)
+        # for i, car in enumerate(parsed):   
+        #     self.results += self.fetch_junkyard_data(car, ignore_headers=(i > 0)
+        #     )
+        with ThreadPoolExecutor() as executor:
+            results = executor.map(self.fetch_junkyard_data,parsed)
+            for result in results:
+                self.results += result
+            
         self.set_results(self.results)
         self.cache_result(self.results)
         return self.results
@@ -186,8 +192,14 @@ class JunkyardScraper:
                 
         return cleaned_data
 
-    
-    def fetch_junkyard_data(self, make='', model='',year='',min_year='',max_year='', ignore_headers=False):
+    #make='', model='',year='',min_year='',max_year='',
+    def fetch_junkyard_data(self, car_dict, ignore_headers=False):
+        make = car_dict['make']
+        model = car_dict['model']
+        year = car_dict['year']
+        min_year = car_dict['min_year']
+        max_year = car_dict['max_year']
+
         url = f'https://www.jolietupullit.com/inventory/?make={make}&model={model}'
         #Create a session
         session = requests.Session()
