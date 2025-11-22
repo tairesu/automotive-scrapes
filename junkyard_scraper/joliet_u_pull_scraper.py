@@ -3,6 +3,8 @@ import requests
 import io
 import pandas as pd
 import re
+import time
+import cProfile
 
 def is_year_present(pattern):
     # print('(is_year_present) patterm:', pattern)
@@ -85,6 +87,7 @@ class JunkyardScraper:
 
 
     def fetch_results(self, query):
+        t0 = time.time()
         parsed = self.parse_queries(query)
         if not parsed:
             print("[!] Invalid query format.")
@@ -97,6 +100,8 @@ class JunkyardScraper:
             )
         self.set_results(self.results)
         self.cache_result(self.results)
+        t1 = time.time()
+        print(f"{t1 - t0} seconds elapsed to fetch", len(self.results.split('\n')) - 2," rows")
         return self.results
 
 
@@ -188,7 +193,7 @@ class JunkyardScraper:
     def fetch_junkyard_data(self, make='', model='',year='',min_year='',max_year='', ignore_headers=False):
         url = f'https://www.jolietupullit.com/inventory/?make={make}&model={model}'
         response = requests.get(url, headers=self.headers)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, 'lxml')
         table = soup.find(id="cars-table")
 
         if not table or not table.find(['td']):
@@ -218,7 +223,7 @@ class JunkyardScraper:
             return False
         #print(f"[car_selection] Valid query: {self.valid_query(car)}")
         
-        return True if self.fetch_results(car) else False
+        return True 
 
     
     def ask_what_next(self):
@@ -362,4 +367,4 @@ class JunkyardScraper:
 # Run it
 if __name__ == "__main__":
     scraper = JunkyardScraper()
-    scraper.handle_search()
+    cProfile.run('scraper.fetch_results("")')
