@@ -30,7 +30,7 @@ class LKQSearch():
 
 
     def handle_filters(self, filters):
-        #Parses the given filters into a comma separated array
+        # Parses the given filters into a comma separated array
         filters_list = self.parse_filters(filters)
         #Loop through that array..
         for filter in filters_list:

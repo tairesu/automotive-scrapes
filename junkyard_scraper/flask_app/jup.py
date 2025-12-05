@@ -3,6 +3,7 @@ import requests
 import io
 import pandas as pd
 import re
+import time
 
 def is_year_present(pattern):
     # print('(is_year_present) patterm:', pattern)
@@ -23,16 +24,22 @@ def parse_car_year(pattern):
 def parse_car_year_range(pattern):
     text = pattern.replace('–', '-').replace('—', '-')
     range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
-    min_year = range_str.split('-')[0]
+    min_year = range_str.split('-')[0] 
     max_year = range_str.split('-')[1]
+    formatted_min_year = "20" + min_year if len(min_year) == 2 else min_year 
+    formatted_max_year = "20" + max_year if len(max_year) == 2 else max_year 
 
-    return (min_year,max_year)
+    return (formatted_min_year,formatted_max_year)
 
 class JupSearch:
     def __init__(self,search=None):
         self.search = ''
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": f"https://www.jolietupullit.com/inventory/",
+            "X-Requested-With": "XMLHttpRequest",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "en-US,en;q=0.9",
         }
         self.yard_info = {'name': 'Joliet U Pull it'}
         self.results_csv = ""
@@ -110,6 +117,7 @@ class JupSearch:
 
 
     def fetch_results(self, query):
+        t0 = time.time()
         parsed = self.parse_queries(query)
         if not parsed:
             print("[!] Invalid query format.")
@@ -122,6 +130,9 @@ class JupSearch:
             )
         self.set_results(self.results_csv)
         self.cache_result(self.results_csv)
+
+        t1 = time.time()
+        print(f"{t1 - t0} seconds elapsed to fetch", len(self.results)," rows")
         return self.results_csv
 
 
@@ -211,10 +222,12 @@ class JupSearch:
 
     
     def fetch_junkyard_data(self, make='', model='',year='',min_year='',max_year='', ignore_headers=False):
+        
         url = f'https://www.jolietupullit.com/inventory/?make={make}&model={model}'
         response = requests.get(url, headers=self.headers)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, 'lxml')
         table = soup.find(id="cars-table")
+        time.sleep(0.25)
 
         if not table or not table.find(['td']):
             print(f"[!] Could not find {make} {model}'s")
@@ -224,7 +237,6 @@ class JupSearch:
         if ignore_headers:
             #Skip the header row
             rows = rows[1:]
-        
         return self.parse_site_table_rows(rows,year,min_year,max_year)
 
     

@@ -28,8 +28,10 @@ def parse_car_year_range(pattern):
     range_str = re.findall(r"^\d{2}-\d{2}|^\d{4}-\d{4}", text.strip())[0]
     min_year = range_str.split('-')[0]
     max_year = range_str.split('-')[1]
+    formatted_min_year = "20" + min_year if len(min_year) == 2 else min_year 
+    formatted_max_year = "20" + max_year if len(max_year) == 2 else max_year 
 
-    return (min_year,max_year)
+    return (formatted_min_year,formatted_max_year)
 
 class JunkyardScraper:
     def __init__(self):
@@ -381,4 +383,4 @@ class JunkyardScraper:
 # Run it
 if __name__ == "__main__":
     scraper = JunkyardScraper()
-    cProfile.run('scraper.fetch_results("")')
+    cProfile.run('scraper.fetch_results("2001-2005 honda civic, 02-05 chevrolet tahoe")')
